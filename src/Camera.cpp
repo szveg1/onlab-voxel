@@ -3,7 +3,7 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-
+using namespace glm;
 Camera::Camera()
 {
     update();
@@ -54,10 +54,10 @@ void Camera::move(std::set<int> keysPressed, float dt)
         position -= speed * ahead;
     }
     if (keysPressed.count('a')) {
-        position += speed * right;
+        position -= speed * right;
     }
     if (keysPressed.count('d')) {
-        position -= speed * right;
+        position += speed * right;
     }
     if (keysPressed.count('q')) {
         position += speed * up;
@@ -89,7 +89,7 @@ void Camera::mouseMove(double x, double y)
 
 
     yaw -= radians(xoffset);
-    pitch -= radians(yoffset);
+    pitch += radians(yoffset);
 
     if (pitch > radians(89.0f))
         pitch = radians(89.0f);

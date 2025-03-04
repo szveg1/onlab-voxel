@@ -3,11 +3,12 @@
 #include "GPUProgram.h"
 #include "Shader.h"
 
-GPUProgram::GPUProgram(Shader vertexShader, Shader fragmentShader)
+GPUProgram::GPUProgram(Shader* vertexShader, Shader* fragmentShader, Shader* geometryShader)
 {
 	ID = glCreateProgram();
-	glAttachShader(ID, vertexShader.shaderObject);
-	glAttachShader(ID, fragmentShader.shaderObject);
+	glAttachShader(ID, vertexShader->shaderObject);
+	glAttachShader(ID, fragmentShader->shaderObject);
+	if (geometryShader) glAttachShader(ID, geometryShader->shaderObject);
 	glLinkProgram(ID);
 	if (!checkLinking(ID)) return;
 }
