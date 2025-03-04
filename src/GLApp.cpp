@@ -4,15 +4,16 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <glad/glad.h>
-#include <functional>
-
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 GLApp* GLApp::instance = nullptr;
 
 GLApp::GLApp(const char* title)
 {
-	this->versionMajor = 3;
-	this->versionMinor = 3;
+	this->versionMajor = 4;
+	this->versionMinor = 5;
 	this->width = 800;
 	this->height = 600;
 	this->title = title;
@@ -21,7 +22,9 @@ GLApp::GLApp(const char* title)
 
 GLApp::~GLApp()
 {
-
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
 	glfwDestroyWindow(window);
 	window = nullptr;
 	instance = nullptr;
@@ -41,7 +44,9 @@ void GLApp::run()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, instance->versionMinor);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+
 	instance->window = glfwCreateWindow(instance->width, instance->height, instance->title, NULL, NULL);
+
 	if (instance->window == nullptr)
 	{
 		std::cerr << "Failed to create GLFW window" << std::endl;
@@ -69,20 +74,37 @@ void GLApp::run()
 		exit(EXIT_FAILURE);
 	}
 
-	int framebufferWidth, framebufferHeight;
-	glfwGetFramebufferSize(instance->window, &framebufferWidth, &framebufferHeight);
+	glfwGetFramebufferSize(instance->window, &instance->width, &instance->height);
 
-	glViewport(0, 0, framebufferWidth, framebufferHeight);
+	glViewport(0, 0, instance->width, instance->height);
 
 	instance->onInit();
 	
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	io.MouseDrawCursor = true;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+	// Setup Platform/Renderer backends
+	ImGui_ImplGlfw_InitForOpenGL(instance->window, true);          // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
+	ImGui_ImplOpenGL3_Init();
 
 	while (!glfwWindowShouldClose(instance->window))
 	{
+		glfwPollEvents();
+
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+	
 		instance->onDisplay();
 
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
 		glfwSwapBuffers(instance->window);
-		glfwPollEvents();
 	}
 
 
@@ -96,10 +118,9 @@ void GLApp::errorCallback(int error, const char* description)
 
 void GLApp::window_size_callback(GLFWwindow* window, int width, int height)
 {
-	int framebufferWidth, framebufferHeight;
-	glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+	glfwGetFramebufferSize(instance->window, &instance->width, &instance->height);
 
-	glViewport(0, 0, framebufferWidth, framebufferHeight);
+	glViewport(0, 0, instance->width, instance->height);
 }
 
 
