@@ -30,21 +30,6 @@
     <None Include="shaders\quad.vert">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="shaders\voxelizer.frag">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
-    <None Include="shaders\voxelizer.geom">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
-    <None Include="shaders\voxelizer.vert">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
-    <None Include="shaders\visualize.frag">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
-    <None Include="shaders\visualize.vert">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Camera.cpp">
@@ -68,13 +53,13 @@
     <ClCompile Include="src\VoxelApp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Voxelizer.cpp">
+    <ClCompile Include="src\HeightMapGenerator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\OBJLoader.cpp">
+    <ClCompile Include="src\SVOBuilder.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Triangle.cpp">
+    <ClCompile Include="src\Color.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -97,16 +82,13 @@
     <ClInclude Include="include\Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Voxel.h">
+    <ClInclude Include="include\SVOBuilder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Voxelizer.h">
+    <ClInclude Include="include\HeightMapGenerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\OBJLoader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Triangle.h">
+    <ClInclude Include="include\Color.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

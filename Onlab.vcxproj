@@ -146,37 +146,31 @@
       <FileType>Document</FileType>
     </None>
     <None Include="README.md" />
-    <None Include="shaders\visualize.frag" />
-    <None Include="shaders\visualize.vert" />
-    <None Include="shaders\voxelizer.frag" />
-    <None Include="shaders\voxelizer.geom" />
-    <None Include="shaders\voxelizer.vert" />
     <None Include="vcpkg-configuration.json" />
     <None Include="vcpkg.json" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Camera.cpp" />
+    <ClCompile Include="src\Color.cpp" />
     <ClCompile Include="src\GLApp.cpp" />
     <ClCompile Include="src\GPUProgram.cpp" />
+    <ClCompile Include="src\HeightMapGenerator.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\OBJLoader.cpp" />
-    <ClCompile Include="src\Triangle.cpp" />
-    <ClCompile Include="src\Voxelizer.cpp" />
     <ClCompile Include="src\QuadGeometry.cpp" />
     <ClCompile Include="src\Shader.cpp" />
+    <ClCompile Include="src\SVOBuilder.cpp" />
     <ClCompile Include="src\VoxelApp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Camera.h" />
+    <ClInclude Include="include\Color.h" />
     <ClInclude Include="include\Geometry.h" />
     <ClInclude Include="include\GLApp.h" />
     <ClInclude Include="include\GPUProgram.h" />
-    <ClInclude Include="include\OBJLoader.h" />
-    <ClInclude Include="include\Triangle.h" />
-    <ClInclude Include="include\Voxelizer.h" />
+    <ClInclude Include="include\HeightMapGenerator.h" />
     <ClInclude Include="include\QuadGeometry.h" />
     <ClInclude Include="include\Shader.h" />
-    <ClInclude Include="include\Voxel.h" />
+    <ClInclude Include="include\SVOBuilder.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
