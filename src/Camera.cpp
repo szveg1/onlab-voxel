@@ -45,7 +45,7 @@ void Camera::setAspectRatio(float aspectRatio)
 
 void Camera::move(std::set<int> keysPressed, float dt)
 {
-    float speed = 5.0f * dt;
+    float speed = 0.2f * dt;
 
     if (keysPressed.count('w')) {
         position += speed * ahead;

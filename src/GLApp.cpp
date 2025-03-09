@@ -14,8 +14,8 @@ GLApp::GLApp(const char* title)
 {
 	this->versionMajor = 4;
 	this->versionMinor = 5;
-	this->width = 800;
-	this->height = 600;
+	this->width = 1600;
+	this->height = 900;
 	this->title = title;
 	instance = this;
 }
@@ -82,10 +82,6 @@ void GLApp::run()
 	
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
-	io.MouseDrawCursor = true;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
 	// Setup Platform/Renderer backends
 	ImGui_ImplGlfw_InitForOpenGL(instance->window, true);          // Second param install_callback=true will install GLFW callbacks and chain to existing ones.

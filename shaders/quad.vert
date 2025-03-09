@@ -1,4 +1,4 @@
-#version 330				
+#version 450				
 precision highp float;
 
 layout(location=0) in vec4 vertexPosition;

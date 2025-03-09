@@ -1,4 +1,4 @@
-#version 330
+#version 450
 precision highp float;
 
 out vec4 fragmentColor;
@@ -9,74 +9,61 @@ uniform struct {
     vec3 position;
 } camera;
 
-float noise(vec3 r) {
-    uvec3 s = uvec3(
-    0x1D4E1D4E,
-    0x58F958F9,
-    0x129F129F);
-    float f = 0.0;
-    for (int i = 0; i < 16; i++) {
-        vec3 sf = vec3(s & uvec3(0xFFFF)) / 65536.0 - vec3(0.5, 0.5, 0.5);
+uniform sampler3D voxelTexture;
 
-        f += sin(dot(sf, r));
-        s = s >> 1;
-    }
-    return f / 32.0 + 0.5;
+uniform struct {
+    vec3 direction;
+    vec3 color;
+    float ambient;
+    float shininess;
+} light;
+
+vec3 computeNormal(vec3 p) {
+    float eps = 0.01;
+    
+    vec3 gradient;
+    gradient.x = texture(voxelTexture, p + vec3(eps, 0, 0)).a - 
+                 texture(voxelTexture, p - vec3(eps, 0, 0)).a;
+    gradient.y = texture(voxelTexture, p + vec3(0, eps, 0)).a - 
+                 texture(voxelTexture, p - vec3(0, eps, 0)).a;
+    gradient.z = texture(voxelTexture, p + vec3(0, 0, eps)).a - 
+                 texture(voxelTexture, p - vec3(0, 0, eps)).a;
+    
+    return normalize(gradient);
 }
-
-
-vec3 noiseGrad(vec3 r) {
-    uvec3 s =
-    uvec3(0x1D4E1D4E, 0x58F958F9, 0x129F129F);
-    vec3 f = vec3(0, 0, 0);
-    for (int i = 0; i < 16; i++) {
-        vec3 sf =
-        vec3(s & uvec3(0xffff)) / 65536.0
-        - vec3(0.5, 0.5, 0.5);
-
-        f += cos(dot(sf, r)) * sf;
-        s = s >> 1;
-    }
-    return f;
-}
-
-float f(vec3 p) {
-    return p.y - noise(p * 50.0);
-}
-
-vec3 fGrad(vec3 p){
-    return vec3(0, 1, 0) - noiseGrad(p * 50.0);
-}
-
 
 void main(void) {
     vec3 d = normalize(rayDir.xyz);
-
     float t1 = -camera.position.y / d.y;
     float t2 = (1.0 - camera.position.y) / d.y;
     float tstart = max(min(t1, t2), 0.0);
     float tend = max(t1, t2);
 
     bool found = false;
-    vec3 p, color;
+    vec3 p;
 
-    //LABTODO: ray marching
     if (tstart < tend) {
         p = camera.position + d * tstart;
         vec3 step = d * min((tend - tstart) / 580.0, 0.01);
         for (int i = 0; i < 128; i++) {
             p += step;
             step *= 1.02;
-            if (f(p) < 0.0) {
-                found = true; break;
+            if(p.x > 0 && p.y > 0 && p.z > 0 && p.x < 1 && p.y < 1 && p.z < 1) {
+
+                vec4 voxelColor = texture(voxelTexture, p);
+                if (voxelColor.a > 0.0) {
+                    found = true; 
+                    break;
+                }
             }
         }
         if (found) {
             vec3 lastStep = step / 1.02;
-            vec3 midPoint = p - lastStep / 2.0;
+            vec3 midPoint =  p - lastStep / 2.0;
             step = lastStep / 2.0;
             for (int i = 0; i < 16; i++) {
-                if (f(midPoint) < 0.0) {
+            vec4 voxelColor = texture(voxelTexture, midPoint);
+                if (voxelColor.a > 0.0) {
                     p = midPoint;
                     midPoint -= step;
                 } else {
@@ -87,14 +74,21 @@ void main(void) {
         }
     }
 
-
-
     if (!found) {
-        color = vec3(1,1,1);
+        discard;
     } else {
-        color = normalize(fGrad(p));
+        vec4 voxelColor = texture(voxelTexture, p);
+        vec3 normal = computeNormal(p);
+        vec3 viewDir = normalize(camera.position - p);
+        
+        vec3 ambient = light.ambient * voxelColor.rgb;
+        
+        vec3 lightDir = normalize(-light.direction);
+        float diff = max(dot(normal, lightDir), 0.0);
+        vec3 diffuse = diff * light.color * voxelColor.rgb;
+      
+        vec3 result = (ambient + diffuse) * voxelColor.rgb;
+        
+        fragmentColor = vec4(result, voxelColor.a);
     }
-
-
-    fragmentColor = vec4(color, 1);
 }

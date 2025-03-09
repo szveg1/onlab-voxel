@@ -5,17 +5,18 @@
 #include "GPUProgram.h"
 #include "QuadGeometry.h"
 #include "Camera.h"
-#include <iostream>
+#include <imgui_impl_opengl3.h>
+#include "SVOBuilder.h"
 
-#define GLM_ENABLE_EXPERIMENTAL
-#include "glm/gtx/string_cast.hpp"
 
 class VoxelApp : public GLApp {
 	std::unique_ptr<QuadGeometry> quad;
 	std::unique_ptr<GPUProgram> gpuProgram;
 	std::unique_ptr<Camera> camera;
+	SVOBuilder svoBuilder = SVOBuilder(512);
 	std::set<int> keysPressed;
 	float deltaTime, lastFrame;
+	glm::vec3 lightPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 public:
 	VoxelApp() : GLApp("Voxel app") 
 	{
@@ -26,10 +27,14 @@ public:
 	void onInit() 
 	{
 		quad = std::make_unique<QuadGeometry>();
-		Shader vertexShader = Shader(GL_VERTEX_SHADER, "shaders\\quad.vert");
-		Shader fragmentShader = Shader(GL_FRAGMENT_SHADER, "shaders\\raycast.frag");
-		gpuProgram = std::make_unique<GPUProgram>(vertexShader, fragmentShader);
+		std::unique_ptr<Shader> vertexShader = std::make_unique<Shader>(GL_VERTEX_SHADER, "shaders\\quad.vert");
+		std::unique_ptr<Shader> fragmentShader = std::make_unique<Shader>(GL_FRAGMENT_SHADER, "shaders\\raycast.frag");
+		gpuProgram = std::make_unique<GPUProgram>(vertexShader.get(), fragmentShader.get());
 		camera = std::make_unique<Camera>();
+		glViewport(0, 0, width, height);
+		svoBuilder.build();
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_3D, svoBuilder.getTexture());
 	}
 
 	void onDisplay() 
@@ -38,16 +43,34 @@ public:
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
-		glClearColor(1.0f, 0.0f, 0.8f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		float fps = 1 / deltaTime;
+
+		// Calculate the size needed for the text
+		ImVec2 textSize = ImGui::CalcTextSize("delta: 0.000000\n0.000000 FPS");
+
+		// Set the next window size to fit the text
+		ImGui::SetNextWindowSize(ImVec2(textSize.x + 20, textSize.y + 20)); // Add some padding
+
+		// Create a window in the upper left corner
+		ImGui::Begin("Info", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+		ImGui::SetWindowPos(ImVec2(10, 10)); // Position the window at the top-left corner
+		ImGui::Text("delta: %f\n%.1f FPS", deltaTime, fps);
+		ImGui::End();
+
+
+		glClearColor(0.529f, 0.808f, 0.922f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		camera->move(keysPressed, deltaTime);
-		
+
+		gpuProgram->use();
+
 		gpuProgram->setUniform(camera->RayDirMatrix(), "camera.rayDirMatrix");
 		gpuProgram->setUniform(camera->Position(), "camera.position");
-		
-			
-		gpuProgram->use();
+		gpuProgram->setUniform(glm::vec3(1), "light.direction");
+		gpuProgram->setUniform(glm::vec3(1), "light.color");
+		gpuProgram->setUniform(0.2f, "light.ambient");
+
 		quad->draw();
 	}
 	
