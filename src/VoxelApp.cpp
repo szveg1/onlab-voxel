@@ -13,7 +13,7 @@ class VoxelApp : public GLApp {
 	std::unique_ptr<QuadGeometry> quad;
 	std::unique_ptr<GPUProgram> gpuProgram;
 	std::unique_ptr<Camera> camera;
-	SVOBuilder svoBuilder = SVOBuilder(512);
+	std::unique_ptr<SVOBuilder> svoBuilder;
 	std::set<int> keysPressed;
 	float deltaTime, lastFrame;
 	glm::vec3 lightPosition = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -32,9 +32,8 @@ public:
 		gpuProgram = std::make_unique<GPUProgram>(vertexShader.get(), fragmentShader.get());
 		camera = std::make_unique<Camera>();
 		glViewport(0, 0, width, height);
-		svoBuilder.build();
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_3D, svoBuilder.getTexture());
+		svoBuilder  = std::make_unique<SVOBuilder>(1024u, 256u);
+		svoBuilder->build();
 	}
 
 	void onDisplay() 
@@ -67,10 +66,7 @@ public:
 
 		gpuProgram->setUniform(camera->RayDirMatrix(), "camera.rayDirMatrix");
 		gpuProgram->setUniform(camera->Position(), "camera.position");
-		gpuProgram->setUniform(glm::vec3(1), "light.direction");
-		gpuProgram->setUniform(glm::vec3(1), "light.color");
-		gpuProgram->setUniform(0.2f, "light.ambient");
-
+		gpuProgram->setUniform(svoBuilder->getDepth(), "treeDepth");
 		quad->draw();
 	}
 	

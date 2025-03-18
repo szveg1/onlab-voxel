@@ -26,3 +26,8 @@ Color Color::heightToColor(float height)
 		return interpolate(midColor, highColor, (height - 0.5f) / 0.5f);
 	}
 }
+
+uint32_t Color::rgba() const
+{
+	return (r << 24) | (g << 16) | (b << 8) | a;
+}

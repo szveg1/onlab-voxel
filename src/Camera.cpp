@@ -73,15 +73,15 @@ void Camera::mouseMove(double x, double y)
 {
     if (firstMouse)
     {
-        lastX = x;
-        lastY = y;
+		lastX = static_cast<float>(x);
+        lastY = static_cast<float>(y);
         firstMouse = false;
     }
 
-    float xoffset = x - lastX;
-    float yoffset = lastY - y;
-    lastX = x;
-    lastY = y;
+    float xoffset = static_cast<float>(x) - lastX;
+    float yoffset = lastY - static_cast<float>(y);
+    lastX = static_cast<float>(x);
+    lastY = static_cast<float>(y);
 
     float sensitivity = 0.1f;
     xoffset *= sensitivity;
