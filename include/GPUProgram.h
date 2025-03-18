@@ -16,6 +16,7 @@ public:
 	void setUniform(const glm::vec3& v, const std::string& name);
 	void setUniform(const glm::vec4& v, const std::string& name);
 	void setUniform(const glm::mat4& mat, const std::string& name);
+	void setUniform(const GLuint u, const std::string& name);
 	int getLocation(const std::string& name);
 private:
 	bool checkLinking(GLuint program);

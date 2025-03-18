@@ -3,6 +3,7 @@
 #include "GPUProgram.h"
 #include "Shader.h"
 
+
 GPUProgram::GPUProgram(Shader* vertexShader, Shader* fragmentShader, Shader* geometryShader)
 {
 	ID = glCreateProgram();
@@ -71,4 +72,10 @@ void GPUProgram::setUniform(const vec4& v, const std::string& name) {
 void GPUProgram::setUniform(const mat4& mat, const std::string& name) {
 	int location = getLocation(name);
 	if (location >= 0) glUniformMatrix4fv(location, 1, GL_FALSE, &mat[0][0]);
+}
+
+void GPUProgram::setUniform(const GLuint u, const std::string& name)
+{
+	int location = getLocation(name);
+	if (location >= 0) glUniform1ui(location, u);
 }
