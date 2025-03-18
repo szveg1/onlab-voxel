@@ -3,8 +3,12 @@
 #include "Color.h"
 #include <chrono>
 
-SVOBuilder::SVOBuilder(unsigned int size) : size(size)
+#include <morton-nd/mortonND_BMI2.h>
+#include <execution>
+
+SVOBuilder::SVOBuilder(uint32_t treeSize, uint16_t chunkSize) : treeSize(treeSize), chunkSize(chunkSize)
 {
+	maxDepth = static_cast<size_t>(std::log2(treeSize));
 }
 
 SVOBuilder::~SVOBuilder()
@@ -12,58 +16,120 @@ SVOBuilder::~SVOBuilder()
 }
 
 
-void SVOBuilder::build()
-{
-	auto start = std::chrono::steady_clock::now();
-	nodes = std::vector<VoxelNode>(size * size * size);
-	HeightMapGenerator heightMapGenerator(size);
-	heightMap = heightMapGenerator.generateHeightMap(8, 0.5f, 0.5f);
+void SVOBuilder::build() {
+    auto start = std::chrono::steady_clock::now();
+    printf("Max depth: %zu\n", maxDepth);
 
-	for (int x = 0; x < size; x++)
+    HeightMapGenerator heightMapGenerator(chunkSize, 8, 0.5f, 0.5f);
+    uint32_t numChunks = (treeSize * treeSize) / (chunkSize * chunkSize);
+    std::vector<std::vector<uint64_t>> chunkMortonCodes(numChunks);
+
+    for (size_t i = 0; i < numChunks; ++i) {
+        uint32_t chunkX, chunkZ;
+        std::tie(chunkX, chunkZ) = mortonnd::MortonNDBmi_2D_32::Decode(i);
+        chunkMortonCodes[i] = heightMapGenerator.generateHeightMapChunk(chunkX, chunkZ);
+    }
+
+    for (auto& chunk : chunkMortonCodes) {
+        mortonCodes.insert(mortonCodes.end(), chunk.begin(), chunk.end());
+    }
+
+    std::sort(std::execution::par, mortonCodes.begin(), mortonCodes.end());
+    printf("Number of leaf nodes: %zu\n", mortonCodes.size());
+
+	buildCPUTree();
+    mortonCodes.clear();
+    mortonCodes.shrink_to_fit();
+
+    linearize();
+
+    glGenBuffers(1, &ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, nodes.size() * sizeof(GPUNode),
+        nodes.data(), GL_STATIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
+    nodes.clear();
+    nodes.shrink_to_fit();
+
+	// TODO: This is very slow, look into optimizing
+    root.reset();
+
+    auto end = std::chrono::steady_clock::now();
+    printf("SVO generation took %.1f seconds\n", std::chrono::duration<float>(end - start).count());
+    printf("Total nodes: %zu\n", nodes.size());
+}
+
+void SVOBuilder::buildCPUTree() {
+    root = std::make_unique<CPUNode>();
+
+	for (auto morton : mortonCodes) {
+		insertNode(morton);
+	}
+}
+
+void SVOBuilder::insertNode(uint64_t morton)
+{
+	insertNodeRecursive(root, morton, 0);
+}
+
+void SVOBuilder::insertNodeRecursive(std::unique_ptr<CPUNode>& parent, uint64_t morton, size_t currentDepth)
+{
+    uint8_t childIndex = (morton >> (3 * (maxDepth - currentDepth - 1))) & 0b111;
+    uint8_t childMask = 1 << childIndex;
+
+    parent->childMask |= childMask;
+
+    if (currentDepth == maxDepth - 1)
+    {
+        return;
+    }
+
+    if (parent->children[childIndex] == nullptr)
+    {
+        parent->children[childIndex] = std::make_unique<CPUNode>();
+    }
+
+    insertNodeRecursive(parent->children[childIndex], morton, currentDepth + 1);
+}
+
+void SVOBuilder::linearize()
+{
+    nodes.reserve(mortonCodes.size());
+    nodes.push_back({ root->childMask, 0 });
+
+    linearizeRecursive(root, 0, 0);
+}
+
+void SVOBuilder::linearizeRecursive(std::unique_ptr<CPUNode>& node, uint64_t nodeIndex, size_t currentDepth)
+{
+    if (!node) return;
+
+    if (currentDepth == maxDepth - 1)
 	{
-		for (int z = 0; z < size; z++)
-		{
-			int height = heightMap[x * size + z] * size;
-			for (int y = 0; y < height; y++)
-			{
-				Color color = color.heightToColor(y / (float)size);
-				nodes[x * size * size + y * size + z] = { x, y, z, 255, color.r, color.g, color.b };
-			}
-		}
+		nodes[nodeIndex].childIndex = 0;
+        return;
 	}
 
-	glGenTextures(1, &voxelTexture);
-	glBindTexture(GL_TEXTURE_3D, voxelTexture);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    size_t childCount = std::popcount(node->childMask);
 
-	std::vector<uint8_t> textureData(size * size * size * 4);
-	for (size_t i = 0; i < nodes.size(); ++i) {
-		textureData[i * 4 + 0] = nodes[i].r;
-		textureData[i * 4 + 1] = nodes[i].g;
-		textureData[i * 4 + 2] = nodes[i].b;
-		textureData[i * 4 + 3] = nodes[i].a;
-	}
+    if (childCount == 0) return;
 
-	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, size, size, size, 0,
-		GL_RGBA, GL_UNSIGNED_BYTE, textureData.data());
+    nodes[nodeIndex].childIndex = nodes.size();
 
-	textureData.clear();
-	textureData.shrink_to_fit();
+    size_t startIndex = nodes.size();
+    for (size_t i = 0; i < childCount; i++)
+    {
+        nodes.push_back({ 0,0 });
+    }
 
-	auto end = std::chrono::steady_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::duration<float>>(end - start);
-
-	printf("SVO generation took %.1f seconds\n", duration.count());
-
-	
+    size_t resultIndex = 0;
+    for (size_t i = 0; i < 8; i++)
+    {
+        if ((node->childMask & (1 << i)) != 0)
+        {
+            nodes[startIndex + resultIndex].childMask = node->children[i]->childMask;
+            linearizeRecursive(node->children[i], startIndex + resultIndex, currentDepth + 1);
+            resultIndex++;
+        }
+    }
 }
-
-GLuint SVOBuilder::getTexture()
-{
-	return voxelTexture;
-}
-
