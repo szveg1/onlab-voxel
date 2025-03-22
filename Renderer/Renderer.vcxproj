@@ -18,11 +18,37 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\Camera.h" />
+    <ClInclude Include="include\Color.h" />
+    <ClInclude Include="include\Geometry.h" />
+    <ClInclude Include="include\GLApp.h" />
+    <ClInclude Include="include\GPUProgram.h" />
+    <ClInclude Include="include\QuadGeometry.h" />
+    <ClInclude Include="include\Shader.h" />
+    <ClInclude Include="include\SVOLoader.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Camera.cpp" />
+    <ClCompile Include="src\Color.cpp" />
+    <ClCompile Include="src\GLApp.cpp" />
+    <ClCompile Include="src\GPUProgram.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\QuadGeometry.cpp" />
+    <ClCompile Include="src\Shader.cpp" />
+    <ClCompile Include="src\SVOLoader.cpp" />
+    <ClCompile Include="src\VoxelApp.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\quad.vert" />
+    <None Include="shaders\raycast.frag" />
+    <None Include="vcpkg.json" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{e781fa36-c4d8-498c-b023-9f90f16092a3}</ProjectGuid>
-    <RootNamespace>Onlab</RootNamespace>
+    <ProjectGuid>{a583126d-32b5-46d5-bc2b-18d102b05999}</ProjectGuid>
+    <RootNamespace>Renderer</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -71,8 +97,9 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <SourcePath>$(SolutionDir)src;$(SourcePath)</SourcePath>
-    <IncludePath>$(SolutionDir)include\lfpAlloc;$(SolutionDir)include;$(IncludePath)</IncludePath>
+    <OutDir>$(ProjectDir)$(Platform)\$(Configuration)\</OutDir>
+    <IncludePath>$(ProjectDir)include;$(IncludePath)</IncludePath>
+    <SourcePath>$(ProjectDir)src;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnableManifest>true</VcpkgEnableManifest>
@@ -109,22 +136,14 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <Optimization>MaxSpeed</Optimization>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <PostBuildEvent>
-      <Command>
-      </Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -142,40 +161,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <None Include="shaders\quad.vert">
-      <FileType>Document</FileType>
-    </None>
-    <None Include="shaders\raycast.frag">
-      <FileType>Document</FileType>
-    </None>
-    <None Include="README.md" />
-    <None Include="vcpkg-configuration.json" />
-    <None Include="vcpkg.json" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="src\Camera.cpp" />
-    <ClCompile Include="src\Color.cpp" />
-    <ClCompile Include="src\GLApp.cpp" />
-    <ClCompile Include="src\GPUProgram.cpp" />
-    <ClCompile Include="src\HeightMapGenerator.cpp" />
-    <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\QuadGeometry.cpp" />
-    <ClCompile Include="src\Shader.cpp" />
-    <ClCompile Include="src\SVOBuilder.cpp" />
-    <ClCompile Include="src\VoxelApp.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="include\Camera.h" />
-    <ClInclude Include="include\Color.h" />
-    <ClInclude Include="include\Geometry.h" />
-    <ClInclude Include="include\GLApp.h" />
-    <ClInclude Include="include\GPUProgram.h" />
-    <ClInclude Include="include\HeightMapGenerator.h" />
-    <ClInclude Include="include\QuadGeometry.h" />
-    <ClInclude Include="include\Shader.h" />
-    <ClInclude Include="include\SVOBuilder.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

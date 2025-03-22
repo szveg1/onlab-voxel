@@ -6,14 +6,14 @@
 #include "QuadGeometry.h"
 #include "Camera.h"
 #include <imgui_impl_opengl3.h>
-#include "SVOBuilder.h"
+#include "SVOLoader.h"
 
 
 class VoxelApp : public GLApp {
 	std::unique_ptr<QuadGeometry> quad;
 	std::unique_ptr<GPUProgram> gpuProgram;
 	std::unique_ptr<Camera> camera;
-	std::unique_ptr<SVOBuilder> svoBuilder;
+	std::unique_ptr<SVOLoader> svoLoader;
 	std::set<int> keysPressed;
 	float deltaTime, lastFrame;
 	glm::vec3 lightPosition = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -32,8 +32,9 @@ public:
 		gpuProgram = std::make_unique<GPUProgram>(vertexShader.get(), fragmentShader.get());
 		camera = std::make_unique<Camera>();
 		glViewport(0, 0, width, height);
-		svoBuilder  = std::make_unique<SVOBuilder>(1024u, 256u);
-		svoBuilder->build();
+		svoLoader = std::make_unique<SVOLoader>();
+		svoLoader->load();
+		svoLoader->uploadToGPU();
 	}
 
 	void onDisplay() 
@@ -66,7 +67,7 @@ public:
 
 		gpuProgram->setUniform(camera->RayDirMatrix(), "camera.rayDirMatrix");
 		gpuProgram->setUniform(camera->Position(), "camera.position");
-		gpuProgram->setUniform(svoBuilder->getDepth(), "treeDepth");
+		gpuProgram->setUniform(svoLoader->getDepth(), "treeDepth");
 		quad->draw();
 	}
 	

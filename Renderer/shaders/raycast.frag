@@ -66,8 +66,7 @@ bool traverseOctree(vec3 p)
 }
 
 vec3 getMountainColor(vec3 position) {
-    // Calculate maxY based on tree depth
-    float maxY = 1.0 / exp2(float(treeDepth) - 8.0);
+    float maxY = 1.0;
     
     // Normalize the y position based on maxY
     float normalizedY = position.y / maxY;

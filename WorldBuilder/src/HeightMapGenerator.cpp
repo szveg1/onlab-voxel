@@ -15,6 +15,27 @@ HeightMapGenerator::HeightMapGenerator(uint32_t gridSize, int octaves, float per
 
 HeightMapGenerator::~HeightMapGenerator() {}
 
+std::vector<float> HeightMapGenerator::generateHeightMap()
+{
+    auto start = std::chrono::steady_clock::now();
+    std::vector<float> heightMap;
+    heightMap.resize(gridSize * gridSize);
+    for (uint32_t x = 0; x < gridSize; x++)
+    {
+        for (uint32_t z = 0; z < gridSize; z++)
+        {
+            float nx = static_cast<float>(x) / gridSize + randomOffsetX;
+            float nz = static_cast<float>(z) / gridSize + randomOffsetY;
+            float nheight = layeredNoise(nx, nz, octaves, persistence, scale);
+            heightMap[z * gridSize + x] = nheight;
+        }
+    }
+    auto end = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::duration<float>>(end - start);
+    printf("heightmap generation took %.1f seconds\n", duration.count());
+    return heightMap;
+}
+
 std::vector<uint64_t> HeightMapGenerator::generateHeightMapChunk(uint32_t chunkX, uint32_t chunkZ)
 {
     auto start = std::chrono::steady_clock::now();

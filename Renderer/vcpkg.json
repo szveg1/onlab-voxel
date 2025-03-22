@@ -10,6 +10,6 @@
         "opengl3-binding"
       ]
     },
-    "morton-nd"
+    "cereal"
   ]
 }
