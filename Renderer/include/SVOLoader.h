@@ -4,14 +4,20 @@
 #include <cereal/types/vector.hpp>
 #include <vector>
 #include <glad/glad.h>
+#include <glm/glm.hpp>
 
 struct GPUNode {
     uint8_t childMask;
-    uint64_t childIndex;
+    uint32_t children[8];
 
     template <class Archive>
-    void serialize(Archive& ar) {
-        ar(childMask, childIndex);
+    void serialize(Archive& ar)
+    {
+        ar(childMask);
+        for (size_t i = 0; i < 8; i++)
+        {
+            ar(children[i]);
+        }
     }
 };
 
@@ -23,6 +29,7 @@ public:
     void uploadToGPU();
 	GLuint getDepth() { return static_cast<GLuint>(maxDepth); }
 private:
+    GLuint ssbo, nodeCounter;
     friend class cereal::access;
 
     template <class Archive>

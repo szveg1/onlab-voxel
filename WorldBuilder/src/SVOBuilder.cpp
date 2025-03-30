@@ -1,6 +1,7 @@
 #include "SVOBuilder.h"
 #include "HeightMapGenerator.h"
 #include <chrono>
+#include <thread>
 #include <morton-nd/mortonND_BMI2.h>
 #include <fstream>
 
@@ -30,50 +31,70 @@ void SVOBuilder::build() {
     float x_ratio = (float)(heightMapSize - 1) / (treeSize - 1);
     float z_ratio = (float)(heightMapSize - 1) / (treeSize - 1);
 
-    for (size_t gridX = 0; gridX < treeSize; gridX++) {
-        for (size_t gridZ = 0; gridZ < treeSize; gridZ++) {
-            float x = x_ratio * gridX;
-            float z = z_ratio * gridZ;
+    size_t leafVoxels = 0;
 
-            size_t x1 = static_cast<size_t>(floorf(x));
-            size_t z1 = static_cast<size_t>(floorf(z));
-            size_t x2 = x1 + 1;
-            size_t z2 = z1 + 1;
+	root = std::make_unique<CPUNode>();
 
-            if (x2 >= heightMapSize) x2 = x1;
-            if (z2 >= heightMapSize) z2 = z1;
+    auto worker = [&](size_t startX, size_t endX) {
+        for (size_t gridX = startX; gridX < endX; gridX++) {
+            for (size_t gridZ = 0; gridZ < treeSize; gridZ++) {
+                float x = x_ratio * gridX;
+                float z = z_ratio * gridZ;
 
-            float q11 = heightMap[z1 * heightMapSize + x1];
-            float q12 = heightMap[z2 * heightMapSize + x1];
-            float q21 = heightMap[z1 * heightMapSize + x2];
-            float q22 = heightMap[z2 * heightMapSize + x2];
+                size_t x1 = static_cast<size_t>(floorf(x));
+                size_t z1 = static_cast<size_t>(floorf(z));
+                size_t x2 = x1 + 1;
+                size_t z2 = z1 + 1;
 
-            float x_diff = x - x1;
-            float z_diff = z - z1;
+                if (x2 >= heightMapSize) x2 = x1;
+                if (z2 >= heightMapSize) z2 = z1;
 
-            float interpolated = q11 * (1 - x_diff) * (1 - z_diff) +
-                q21 * x_diff * (1 - z_diff) +
-                q12 * (1 - x_diff) * z_diff +
-                q22 * x_diff * z_diff;
+                float q11 = heightMap[z1 * heightMapSize + x1];
+                float q12 = heightMap[z2 * heightMapSize + x1];
+                float q21 = heightMap[z1 * heightMapSize + x2];
+                float q22 = heightMap[z2 * heightMapSize + x2];
 
-            const uint32_t heightY = static_cast<uint32_t>(std::clamp(interpolated, 0.0f, 1.0f) * (treeSize - 1));
-            if (heightY > maxHeight) maxHeight = heightY;
-            if (heightY < minHeight) minHeight = heightY;
-            for (size_t y = heightY - 10; y < heightY; y++)
-            {
-                uint64_t morton = mortonnd::MortonNDBmi_3D_64::Encode(gridX, y, gridZ);
-                mortonCodes.push_back(morton);
+                float x_diff = x - x1;
+                float z_diff = z - z1;
+
+                float interpolated = q11 * (1 - x_diff) * (1 - z_diff) +
+                    q21 * x_diff * (1 - z_diff) +
+                    q12 * (1 - x_diff) * z_diff +
+                    q22 * x_diff * z_diff;
+
+                const uint32_t heightY = static_cast<uint32_t>(std::clamp(interpolated, 0.0f, 1.0f) * (treeSize - 1));
+                {
+                    if (heightY > maxHeight) maxHeight = heightY;
+                    if (heightY < minHeight) minHeight = heightY;
+                }
+                for (size_t y = heightY - 10; y < heightY; y++) {
+                    uint64_t morton = mortonnd::MortonNDBmi_3D_64::Encode(gridX, y, gridZ);
+                    {
+                        insertNode(morton);
+                        leafVoxels++;
+                    }
+                }
             }
         }
+    };
+
+    size_t numThreads = std::thread::hardware_concurrency();
+    std::vector<std::thread> threads;
+    size_t chunkSize = treeSize / numThreads;
+
+    for (size_t i = 0; i < numThreads; ++i) {
+        size_t startX = i * chunkSize;
+        size_t endX = (i == numThreads - 1) ? treeSize : startX + chunkSize;
+        threads.emplace_back(worker, startX, endX);
     }
 
-    printf("Number of leaf voxels: %zu\n", mortonCodes.size());
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    printf("Number of leaf voxels: %zu\n", leafVoxels);
     printf("Max height: %u\n", maxHeight);
     printf("Min height: %u\n", minHeight);
-
-    buildCPUTree();
-    mortonCodes.clear();
-    mortonCodes.shrink_to_fit();
 
     linearize();
 
@@ -83,7 +104,6 @@ void SVOBuilder::build() {
     nodes.clear();
     nodes.shrink_to_fit();
 
-    // TODO: This is very slow, look into optimizing
     root.reset();
 
     auto end = std::chrono::steady_clock::now();
@@ -126,7 +146,14 @@ void SVOBuilder::insertNodeRecursive(std::unique_ptr<CPUNode>& parent, uint64_t 
 void SVOBuilder::linearize()
 {
     nodes.reserve(mortonCodes.size());
-    nodes.push_back({ root->childMask, 0 });
+
+    GPUNode rootNode;
+    rootNode.childMask = root->childMask;
+    for (size_t i = 0; i < 8; i++)
+    {
+        rootNode.children[i] = 0;
+    }
+    nodes.push_back(rootNode);
 
     linearizeRecursive(root, 0, 0);
 }
@@ -137,30 +164,29 @@ void SVOBuilder::linearizeRecursive(std::unique_ptr<CPUNode>& node, uint64_t nod
 
     if (currentDepth == maxDepth - 1)
     {
-        nodes[nodeIndex].childIndex = 0;
         return;
     }
 
-    size_t childCount = std::popcount(node->childMask);
-
-    if (childCount == 0) return;
-
-    nodes[nodeIndex].childIndex = nodes.size();
-
-    size_t startIndex = nodes.size();
-    for (size_t i = 0; i < childCount; i++)
-    {
-        nodes.push_back({ 0,0 });
-    }
-
-    size_t resultIndex = 0;
     for (size_t i = 0; i < 8; i++)
     {
         if ((node->childMask & (1 << i)) != 0)
         {
-            nodes[startIndex + resultIndex].childMask = node->children[i]->childMask;
-            linearizeRecursive(node->children[i], startIndex + resultIndex, currentDepth + 1);
-            resultIndex++;
+            size_t childIndex = nodes.size();
+            nodes[nodeIndex].children[i] = childIndex;
+
+            GPUNode childNode;
+            childNode.childMask = node->children[i]->childMask;
+            for (size_t j = 0; j < 8; j++)
+            {
+                childNode.children[i] = 0;
+            }
+            nodes.push_back(childNode);
+
+            linearizeRecursive(node->children[i], childIndex, currentDepth + 1);
+        }
+        else
+        {
+            nodes[nodeIndex].children[i] = 0;
         }
     }
 }
