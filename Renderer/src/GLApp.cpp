@@ -65,8 +65,15 @@ void GLApp::run()
 	glfwSetInputMode(instance->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetCursorPosCallback(instance->window, cursorPosCallback);
 	glfwSetMouseButtonCallback(instance->window, mouseButtonCallback);
+	glfwSetScrollCallback(instance->window, 
+		[](GLFWwindow* window, double xoffset, double yoffset)
+		{
+			instance->onMouseScrolled(xoffset, yoffset);
+		}
+	);
 
 	glfwMakeContextCurrent(instance->window);
+	glfwSwapInterval(0);
 
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{

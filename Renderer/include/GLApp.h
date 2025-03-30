@@ -21,6 +21,7 @@ public:
 	virtual void onKeyboardUp(int key) {}
 	virtual void onMousePressed(MouseButton but, int pX, int pY) {}
 	virtual void onMouseReleased(MouseButton but, int pX, int pY) {}
+	virtual void onMouseScrolled(double xoffset, double yoffset) {}
 	virtual void onMouseMotion(double x, double y) {}
 	virtual void onTimeElapsed(float startTime, float endTime) {}
 protected:
