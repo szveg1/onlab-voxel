@@ -13,6 +13,7 @@ public:
 	const glm::mat4 ViewProjMatrix() { return viewProjMatrix; }
 	const glm::mat4 RayDirMatrix() { return rayDirMatrix; }
 	const glm::vec3 Position() { return position; }
+	const glm::vec3 Ahead() { return ahead; }
 private:
 	glm::vec3 position = glm::vec3(0, 1, 1);
 	float roll = 0, pitch = 0, yaw = 0;

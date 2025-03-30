@@ -96,9 +96,9 @@ void Camera::mouseMove(double x, double y)
     if (pitch < radians(-89.0f))
         pitch = radians(-89.0f);
 
-    update();
     ahead = vec4(0, 0, 1, 0) * rotationMatrix;
     right = vec4(1, 0, 0, 0) * rotationMatrix;
     up = vec4(0, 1, 0, 0) * rotationMatrix;
+    update();
 }
 
