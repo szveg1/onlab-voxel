@@ -27,6 +27,7 @@
     <ClInclude Include="include\QuadGeometry.h" />
     <ClInclude Include="include\Shader.h" />
     <ClInclude Include="include\SVOLoader.h" />
+    <ClInclude Include="include\Texture.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Camera.cpp" />
@@ -37,11 +38,13 @@
     <ClCompile Include="src\QuadGeometry.cpp" />
     <ClCompile Include="src\Shader.cpp" />
     <ClCompile Include="src\SVOLoader.cpp" />
+    <ClCompile Include="src\Texture.cpp" />
     <ClCompile Include="src\VoxelApp.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\raycast.comp" />
     <None Include="shaders\quad.vert" />
-    <None Include="shaders\raycast.frag" />
+    <None Include="shaders\textured.frag" />
     <None Include="vcpkg.json" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

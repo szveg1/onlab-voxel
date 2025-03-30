@@ -11,6 +11,7 @@ out vec4 rayDir;
 uniform struct {
   mat4 rayDirMatrix;
   vec3 position;
+  vec3 ahead;
 } camera;
 
 

@@ -39,6 +39,9 @@
     <ClInclude Include="include\SVOLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\Texture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Camera.cpp">
@@ -68,13 +71,19 @@
     <ClCompile Include="src\SVOLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Texture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />
     <None Include="shaders\quad.vert">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="shaders\raycast.frag">
+    <None Include="shaders\textured.frag">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="shaders\raycast.comp">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
