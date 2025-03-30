@@ -26,10 +26,10 @@ QuadGeometry::QuadGeometry() : Geometry()
 
     glBindBuffer(GL_ARRAY_BUFFER, vertexTexCoordBuffer);
     std::vector<float> texCoords = {
-        0.0f,  1.0f,
         0.0f,  0.0f,
-        1.0f,  1.0f,
-        1.0f,  0.0f
+        0.0f,  1.0f,
+        1.0f,  0.0f,
+        1.0f,  1.0f
     };
     glBufferData(GL_ARRAY_BUFFER, texCoords.size() * sizeof(float), texCoords.data(), GL_STATIC_DRAW);
 
