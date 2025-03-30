@@ -14,6 +14,14 @@ GPUProgram::GPUProgram(Shader* vertexShader, Shader* fragmentShader, Shader* geo
 	if (!checkLinking(ID)) return;
 }
 
+GPUProgram::GPUProgram(Shader* computeShader)
+{
+	ID = glCreateProgram();
+	glAttachShader(ID, computeShader->shaderObject);
+	glLinkProgram(ID);
+	if (!checkLinking(ID)) return;
+}
+
 GPUProgram::~GPUProgram() { if (ID > 0) glDeleteProgram(ID); }
 
 bool GPUProgram::checkLinking(GLuint program) 

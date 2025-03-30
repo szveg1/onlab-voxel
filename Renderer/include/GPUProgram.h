@@ -7,6 +7,7 @@ class GPUProgram
 {
 public:
 	GPUProgram(Shader* vertexShader, Shader* fragmentShader, Shader* geometryShader = nullptr);
+	GPUProgram(Shader* computeShader);
 	~GPUProgram();
 	GLuint ID;
 	void use() const;
