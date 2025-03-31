@@ -20,7 +20,7 @@ class VoxelApp : public GLApp {
 	std::unique_ptr<Texture> image;
 	std::set<int> keysPressed;
 	float deltaTime, lastFrame;
-	bool mousePressed = false;
+	int mousePressed = -1;
 	float brushSize = 0.0001f;
 public:
 	VoxelApp() : GLApp("Voxel app") 
@@ -111,18 +111,12 @@ void onDisplay()
 
 	void onMousePressed(MouseButton but, int pX, int pY) override 
 	{
-		if (but == MOUSE_LEFT)
-		{
-			mousePressed = true;
-		}
+		mousePressed = but;
 	}
 
 	void onMouseReleased(MouseButton but, int pX, int pY) override 
 	{
-		if (but == MOUSE_LEFT)
-		{
-			mousePressed = false;
-		}
+		mousePressed = -1;
 	}
 
 	void onMouseScrolled(double xoffset, double yoffset) override
