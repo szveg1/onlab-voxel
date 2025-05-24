@@ -2,7 +2,6 @@
 #include <cstdint>
 #include <vector>
 #include <memory>
-
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/vector.hpp>
 

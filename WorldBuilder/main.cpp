@@ -1,8 +1,8 @@
-#include "SVOBuilder.h"
+#include "SVDAGBuilder.h"
 
 int main(void)
 {
-	SVOBuilder svoBuilder(4096, 512);
-	svoBuilder.build();
+	SVDAGBuilder builder(1024, 512, 64);
+	builder.build();
 	return 0;
 }
