@@ -8,7 +8,6 @@ public:
     HeightMapGenerator(uint32_t gridSize, int octaves, float persistence, float scale);
     ~HeightMapGenerator();
     std::vector<float> generateHeightMap();
-    std::vector<uint64_t> generateHeightMapChunk(uint32_t chunkX, uint32_t chunkZ);
 private:
     uint32_t gridSize;
     int octaves;
