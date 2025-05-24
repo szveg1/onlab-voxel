@@ -178,21 +178,17 @@ void removeVoxel(vec3 p) {
 
         uint childBit = 1u << octant;
 
-        // Check if we've reached a leaf or if the child doesn't exist
         if((node.childMask & childBit) == 0) {
-            return; // Voxel doesn't exist, nothing to remove
         }
 
-        // If we're at the last level, remove the voxel by updating the childMask
         if(depth == treeDepth - 1) {
-            atomicAnd(nodes[nodeIndex].childMask, ~childBit); // Clear the bit
+            atomicAnd(nodes[nodeIndex].childMask, ~childBit);
             return;
         }
 
-        // Continue traversing to the child
         nodeIndex = node.children[octant];
         if(nodeIndex == 0) {
-            return; // Invalid node, nothing to remove
+            return;
         }
         
         nodeSize *= 0.5;

@@ -5,7 +5,7 @@
 void SVOLoader::load()
 {
 	auto start = std::chrono::steady_clock::now();
-	std::ifstream file("svo.bin", std::ios::binary);
+	std::ifstream file("world.bin", std::ios::binary);
 	cereal::BinaryInputArchive archive(file);
 	archive(*this);
 	auto end = std::chrono::steady_clock::now();
@@ -17,7 +17,7 @@ void SVOLoader::load()
 void SVOLoader::uploadToGPU()
 {
 	// TODO: maybe tweak this?
-	//nodes.reserve(nodes.size() * 3);
+	nodes.reserve(nodes.size() * 100);
 
 	glGenBuffers(1, &ssbo);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);

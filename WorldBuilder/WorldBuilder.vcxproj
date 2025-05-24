@@ -20,11 +20,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\HeightMapGenerator.h" />
+    <ClInclude Include="include\SVDAGBuilder.h" />
     <ClInclude Include="include\SVOBuilder.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\HeightMapGenerator.cpp" />
+    <ClCompile Include="src\SVDAGBuilder.cpp" />
     <ClCompile Include="src\SVOBuilder.cpp" />
   </ItemGroup>
   <ItemGroup>
