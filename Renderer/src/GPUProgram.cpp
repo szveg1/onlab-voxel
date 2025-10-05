@@ -87,3 +87,9 @@ void GPUProgram::setUniform(const GLuint u, const std::string& name)
 	int location = getLocation(name);
 	if (location >= 0) glUniform1ui(location, u);
 }
+
+void GPUProgram::setUniform(const bool b, const std::string& name)
+{
+	int location = getLocation(name);
+	if (location >= 0) glUniform1i(location, b);
+}

@@ -4,288 +4,236 @@ precision highp float;
 
 struct VoxelNode {
     uint childMask;
+    uint refs;
+    uint material;
     uint children[8];
 };
 
 uniform struct {
-	mat4 rayDirMatrix;
-	vec3 position;
-	vec3 ahead;
+    mat4 rayDirMatrix;
+    vec3 position;
 } camera;
 
 uniform uint treeDepth;
-uniform int mousePressed;
-uniform float brushSize;
+uniform bool visualizeSteps;
 
 layout(std430, binding = 0) buffer VoxelNodes {
     VoxelNode nodes[];
 };
-layout(binding = 1, offset = 0) uniform atomic_uint nodeCounter;
 
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 layout (rgba32f, binding = 1) uniform writeonly image2D image;
 
-uint countBitsBefore(uint mask, uint bitPosition) {
-    return bitCount(mask & ((1u << bitPosition) - 1u));
+bool rayBoxIntersection(vec3 rayOrigin, vec3 rayDir, vec3 boxMin, vec3 boxMax, out float tNear, out float tFar) {
+    vec3 invRayDir = 1.0 / (rayDir + vec3(1e-8));
+    
+    vec3 t1 = (boxMin - rayOrigin) * invRayDir;
+    vec3 t2 = (boxMax - rayOrigin) * invRayDir;
+    
+    vec3 tMin = min(t1, t2);
+    vec3 tMax = max(t1, t2);
+    
+    tNear = max(max(tMin.x, tMin.y), tMin.z);
+    tFar = min(min(tMax.x, tMax.y), tMax.z);
+    
+    return tNear <= tFar && tFar > 0.0;
 }
 
-bool traverseOctree(vec3 p)
-{
+float traverseOctree(vec3 p, vec3 rayDir, out uint material) {
+    vec3 clampedP = clamp(p, vec3(0.001), vec3(0.999));
+    
+    if (distance(p, clampedP) > 0.01) {
+        return 0.1;
+    }
+    
     uint nodeIndex = 0;
     float nodeSize = 1.0;
     vec3 nodeCenter = vec3(0.5);
 
-    for(int depth = 0; depth < treeDepth; depth++) {
+    for(int depth = 0; depth < int(treeDepth); depth++) {
         VoxelNode node = nodes[nodeIndex];
-
-        uint octant = 0;
-        if(p.x > nodeCenter.x) octant |= 1;
-        if(p.y > nodeCenter.y) octant |= 2;
-        if(p.z > nodeCenter.z) octant |= 4;
-
-        uint childBit = 1u << octant;
-
-        if(depth == treeDepth - 1) {
-            if((node.childMask & childBit) != 0) {
-                return true;
-            }
-        }
-
-        if((node.childMask & childBit) == 0) {
-            return false;
-        }
-
-        nodeIndex = node.children[octant];
-        if(nodeIndex == 0)
-        {
-            return false;
-        }
-       
-        nodeSize *= 0.5;
-        nodeCenter += nodeSize * vec3(
-            (octant & 1) != 0 ? 0.5 : -0.5,
-            (octant & 2) != 0 ? 0.5 : -0.5,
-            (octant & 4) != 0 ? 0.5 : -0.5
-        );
-    }
-    return false;
-}
-
-vec3 getMountainColor(vec3 position) {
-    float maxY = 1.0;
-    float normalizedY = position.y / maxY;
-    
-    float snowLine = 0.75;
-    float rockLine = 0.45;
-    float grassLine = 0.25;
-    
-    float noise1 = sin(position.x * 50.0) * cos(position.z * 50.0) * 0.05;
-    float noise2 = sin(position.x * 120.0 + position.z * 75.0) * 0.07;
-    
-    vec3 mountainColor;
-    
-    if (normalizedY > snowLine) {
-        float snowBlend = smoothstep(snowLine, 0.9, normalizedY);
-        vec3 shadedSnow = vec3(0.8, 0.85, 0.95);
-        vec3 brightSnow = vec3(1.0, 1.0, 1.0);
-        mountainColor = mix(shadedSnow, brightSnow, snowBlend);
-        mountainColor += vec3(noise1);
-    }
-    else if (normalizedY > rockLine) {
-        float rockBlend = (normalizedY - rockLine) / (snowLine - rockLine);
-        vec3 lowerRock = vec3(0.5, 0.4, 0.35);
-        vec3 upperRock = vec3(0.7, 0.7, 0.75);
-        mountainColor = mix(lowerRock, upperRock, rockBlend);
-        mountainColor += vec3(noise2);
-    }
-    else if (normalizedY > grassLine) {
-        float meadowBlend = (normalizedY - grassLine) / (rockLine - grassLine);
-        vec3 alpineMeadow = vec3(0.3, 0.5, 0.2);
-        vec3 rockyTerrain = vec3(0.45, 0.38, 0.32);
-        mountainColor = mix(alpineMeadow, rockyTerrain, meadowBlend);
-        mountainColor += vec3(noise1 * 2.0);
-    }
-    else {
-        float forestBlend = normalizedY / grassLine;
-        vec3 darkForest = vec3(0.1, 0.25, 0.1);
-        vec3 lightForest = vec3(0.2, 0.35, 0.15);
-        mountainColor = mix(darkForest, lightForest, forestBlend);
-        mountainColor += vec3(noise2 * 1.5);
-    }
-    
-    return mountainColor;
-}
-
-void addVoxel(vec3 p) {
-    uint nodeIndex = 0;
-    float nodeSize = 1.0;
-    vec3 nodeCenter = vec3(0.5);
-
-    VoxelNode node = nodes[nodeIndex];
-
-    for(int depth = 0; depth < treeDepth; depth++) {
-        VoxelNode node = nodes[nodeIndex];
-
-        uint octant = 0;
-        if(p.x > nodeCenter.x) octant |= 1;
-        if(p.y > nodeCenter.y) octant |= 2;
-        if(p.z > nodeCenter.z) octant |= 4;
-
-        uint childBit = 1u << octant;
-
-        if((node.childMask & childBit) != 0) 
-        {
-            nodeIndex = node.children[octant];    
-        }
-        else
-        {
-            uint newNodeIndex = atomicCounterIncrement(nodeCounter);
-            atomicExchange(nodes[newNodeIndex].childMask, 0u);
-            for(int i = 0; i < 8; i++) {
-                atomicExchange(nodes[newNodeIndex].children[i], 0u);
-            }
-            atomicOr(nodes[nodeIndex].childMask, childBit);
-            atomicExchange(nodes[nodeIndex].children[octant], newNodeIndex);
-            
-            memoryBarrierBuffer();
-
-            nodeIndex = newNodeIndex;
-        }
-
-
-
-        nodeSize *= 0.5;
-        nodeCenter += nodeSize * vec3(
-            (octant & 1) != 0 ? 0.5 : -0.5,
-            (octant & 2) != 0 ? 0.5 : -0.5,
-            (octant & 4) != 0 ? 0.5 : -0.5
-        );
-    }
-}
-
-void removeVoxel(vec3 p) {
-    uint nodeIndex = 0;
-    float nodeSize = 1.0;
-    vec3 nodeCenter = vec3(0.5);
-
-    for(int depth = 0; depth < treeDepth; depth++) {
-        VoxelNode node = nodes[nodeIndex];
-
-        uint octant = 0;
-        if(p.x > nodeCenter.x) octant |= 1;
-        if(p.y > nodeCenter.y) octant |= 2;
-        if(p.z > nodeCenter.z) octant |= 4;
-
-        uint childBit = 1u << octant;
-
-        if((node.childMask & childBit) == 0) {
-        }
-
-        if(depth == treeDepth - 1) {
-            atomicAnd(nodes[nodeIndex].childMask, ~childBit);
-            return;
-        }
-
-        nodeIndex = node.children[octant];
-        if(nodeIndex == 0) {
-            return;
-        }
         
+        // childMask == 0 -> empty node
+        if (node.childMask == 0u) {
+            vec3 nodeMin = nodeCenter - vec3(nodeSize * 0.5);
+            vec3 nodeMax = nodeCenter + vec3(nodeSize * 0.5);
+
+            vec3 t1 = (nodeMin - clampedP) / (rayDir + vec3(1e-8));
+            vec3 t2 = (nodeMax - clampedP) / (rayDir + vec3(1e-8));
+
+            vec3 tMax = max(t1, t2);
+            float exitDist = min(min(tMax.x, tMax.y), tMax.z);
+
+            return max(exitDist * 0.9, 0.001);
+        }
+
+        uint octant = 0;
+        octant |= (clampedP.x > nodeCenter.x) ? 1 : 0;
+        octant |= (clampedP.y > nodeCenter.y) ? 2 : 0;
+        octant |= (clampedP.z > nodeCenter.z) ? 4 : 0;
+
+        uint childBit = 1u << octant;
+
+        // leaf node
+        if (depth == int(treeDepth) - 1 && (node.childMask & childBit) != 0) {
+            material = node.material;
+            return 0.0; // Found a voxel
+        }
+
+        // empty octant
+        if ((node.childMask & childBit) == 0) {
+            // Calculate boundaries of current octant
+            vec3 octantMin = nodeCenter;
+            vec3 octantMax = nodeCenter;
+            
+            if ((octant & 1) != 0) {
+                octantMin.x = nodeCenter.x;
+                octantMax.x = nodeCenter.x + nodeSize * 0.5;
+            } else {
+                octantMin.x = nodeCenter.x - nodeSize * 0.5;
+                octantMax.x = nodeCenter.x;
+            }
+            
+            if ((octant & 2) != 0) {
+                octantMin.y = nodeCenter.y;
+                octantMax.y = nodeCenter.y + nodeSize * 0.5;
+            } else {
+                octantMin.y = nodeCenter.y - nodeSize * 0.5;
+                octantMax.y = nodeCenter.y;
+            }
+            
+            if ((octant & 4) != 0) {
+                octantMin.z = nodeCenter.z;
+                octantMax.z = nodeCenter.z + nodeSize * 0.5;
+            } else {
+                octantMin.z = nodeCenter.z - nodeSize * 0.5;
+                octantMax.z = nodeCenter.z;
+            }
+
+            vec3 t1 = (octantMin - clampedP) / (rayDir + vec3(1e-8));
+            vec3 t2 = (octantMax - clampedP) / (rayDir + vec3(1e-8));
+
+            vec3 tMax = max(t1, t2);
+            float exitDist = min(min(tMax.x, tMax.y), tMax.z);
+            
+            return max(exitDist * 0.9, 0.001);
+        }
+
+        uint nextIndex = node.children[octant];
+        if (nextIndex == 0u) {
+            return 0.001; 
+        }
+
+        nodeIndex = nextIndex;
         nodeSize *= 0.5;
-        nodeCenter += nodeSize * vec3(
+        nodeCenter += nodeSize * (vec3(
             (octant & 1) != 0 ? 0.5 : -0.5,
             (octant & 2) != 0 ? 0.5 : -0.5,
             (octant & 4) != 0 ? 0.5 : -0.5
-        );
+        ));
     }
+    
+    // If we get here, we didn't find a voxel at the deepest level
+    return 0.001; // Small step to continue searching
 }
 
-void applyBrush(vec3 center, float radius, float intensity, bool isRemove) {
-    vec3 minBound = max(vec3(0.0), center - vec3(radius));
-    vec3 maxBound = min(vec3(1.0), center + vec3(radius));
-    
-    float minVoxelSize = 1.0 / float(1 << treeDepth);
-    float stepSize = minVoxelSize * 0.5;
-    
-    for(float x = minBound.x; x <= maxBound.x; x += stepSize) {
-        for(float y = minBound.y; y <= maxBound.y; y += stepSize) {
-            for(float z = minBound.z; z <= maxBound.z; z += stepSize) {
-                
-                vec3 pos = vec3(x, y, z);
-                float dist = distance(center, pos);
-                
-                if(dist <= radius) {
-                    if(isRemove) {
-                        removeVoxel(pos);
-                    } else {
-                        addVoxel(pos);
-                    }
-                }
-            }
-        }
-    }
+float saturate( float x ) { return clamp( x, 0.0, 1.0 ); }
+vec3 saturate( vec3 x ) { return clamp( x, vec3(0.0,0.0,0.0), vec3(1.0,1.0,1.0) ); }
+
+vec3 plasma_quintic( float x )
+{
+    x = saturate( x );
+    vec4 x1 = vec4( 1.0, x, x * x, x * x * x ); // 1 x x2 x3
+    vec4 x2 = x1 * x1.w * x; // x4 x5 x6 x7
+    return saturate( vec3(
+        dot( x1.xyzw, vec4( +0.063861086, +1.992659096, -1.023901152, -0.490832805 ) ) + dot( x2.xy, vec2( +1.308442123, -0.914547012 ) ),
+        dot( x1.xyzw, vec4( +0.049718590, -0.791144343, +2.892305078, +0.811726816 ) ) + dot( x2.xy, vec2( -4.686502417, +2.717794514 ) ),
+        dot( x1.xyzw, vec4( +0.513275779, +1.580255060, -5.164414457, +4.559573646 ) ) + dot( x2.xy, vec2( -1.916810682, +0.570638854 ) ) ) );
+}
+
+vec3 getColorFromMaterial(uint material) {
+    uint redMask = 0xF800;
+    uint greenMask = 0x7E0;
+    uint blueMask = 0x1F;
+
+    uint redValue = (material & redMask) >> 11;
+    uint greenValue = (material & greenMask) >> 5;
+    uint blueValue = (material & blueMask);
+
+    float red = (redValue << 3) / 256.0f; 
+    float green = (greenValue << 2) / 256.0f;
+    float blue = (blueValue << 3) / 256.0f;
+
+    return vec3(red, green, blue);
 }
 
 void main() {
     vec2 viewportSize = imageSize(image);
     ivec2 pixelCoord = ivec2(gl_GlobalInvocationID.xy);
-    vec2 uv = vec2(pixelCoord / viewportSize * 2.0 - 1.0);
-    
-    
+    vec2 uv = (vec2(pixelCoord) / viewportSize) * 2.0 - 1.0;
+
     vec4 pixel = vec4(uv, 1, 1);
-    
     vec4 rayDir = pixel * camera.rayDirMatrix;
     vec3 rayOrigin = camera.position;
-
     vec3 d = normalize(rayDir.xyz);
+
+    vec3 worldMin = vec3(0.0);
+    vec3 worldMax = vec3(1.0);
     
-    float t1 = -camera.position.y / d.y;
-    float t2 = (1.0 - camera.position.y) / d.y;
-    float tstart = max(min(t1, t2), 0.0);
-    float tend = max(t1, t2);
+    float tNear, tFar;
+    bool intersectsWorld = rayBoxIntersection(rayOrigin, d, worldMin, worldMax, tNear, tFar);
+    
+    if (!intersectsWorld) {
+        imageStore(image, pixelCoord, vec4(0));
+        return;
+    }
+    
+    float tStart = max(tNear, 0.0);
+    float tEnd = tFar;
+    
+    if (tStart >= tEnd) {
+        imageStore(image, pixelCoord, vec4(0));
+        return;
+    }
 
     bool found = false;
-    bool selected = false;
-    vec3 p;
-    
-    vec3 stepSize;
-    if (tstart < tend) {
-        p = camera.position + d * tstart;
-        stepSize = d * min((tend - tstart) / 580.0, 0.001);
-        for (int i = 0; i < 512; i++) {
-            p += stepSize;
-            stepSize *= 1.002;
-            if(p.x > 0 && p.y > 0 && p.z > 0 && p.x < 1 && p.y < 1 && p.z < 1) {
-                if (traverseOctree(p)) {
-                    float a = length(camera.position - p);
-                    float b = length(p - (camera.position + camera.ahead));
-                    float c = length(camera.ahead);
-                    if (abs(a + b - c) < brushSize)
-                    {
-                        selected = true;
-                    }
-                    found = true; 
-                    break;
-                }
-            }
+    vec3 p = rayOrigin + d * tStart;
+    int steps = 0;
+    uint material;
+
+    for (int i = 0; i < 1024; i++) {
+        steps = i;
+        
+        if (any(lessThan(p, worldMin)) || any(greaterThan(p, worldMax))) {
+            break;
         }
+        
+        float currentT = length(p - rayOrigin);
+        
+        if (currentT > tEnd) {
+            break;
+        }
+        
+        float stepSize = traverseOctree(p, d, material);
+        
+        if (stepSize == 0.0) {
+            found = true;
+            break;
+        }
+        
+        p += d * stepSize;
     }
 
     if (found) {
-        vec3 color = getMountainColor(p);
-        if (selected) {
-            float value = 0.5;
-            if (mousePressed != -1) {
-                value = 0.25;
-                vec3 editPoint = p - stepSize * 0.5;
-                
-                applyBrush(editPoint, brushSize, 1.0, bool(mousePressed));
-            }
-            color = mix(getMountainColor(p), vec3(1,0,0), value);
+        vec3 color; 
+        if (visualizeSteps) {
+            float steps_normalized = steps / 1024.0f;
+            color = plasma_quintic(steps_normalized);        
+        } else {
+            color = getColorFromMaterial(material);
         }
         imageStore(image, pixelCoord, vec4(color, 1));
     } else {
         imageStore(image, pixelCoord, vec4(0));
     }
-
 }

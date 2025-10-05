@@ -17,7 +17,7 @@ void SVOLoader::load()
 void SVOLoader::uploadToGPU()
 {
 	// TODO: maybe tweak this?
-	nodes.reserve(nodes.size() * 100);
+	nodes.reserve(nodes.size() * 3);
 
 	glGenBuffers(1, &ssbo);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);

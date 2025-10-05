@@ -15,7 +15,7 @@ public:
 	const glm::vec3 Position() { return position; }
 	const glm::vec3 Ahead() { return ahead; }
 private:
-	glm::vec3 position = glm::vec3(0, 1, 1);
+	glm::vec3 position = glm::vec3(0.5, 1, 0.5);
 	float roll = 0, pitch = 0, yaw = 0;
 	float fov = 1, aspect = 1;
 	float nearPlane = 1, farPlane = 1000;

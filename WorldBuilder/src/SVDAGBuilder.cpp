@@ -3,6 +3,7 @@
 #include <chrono>
 #include <morton-nd/mortonND_BMI2.h>
 #include <fstream>
+#include <glm/gtc/noise.hpp>
 
 SVDAGBuilder::SVDAGBuilder(uint32_t treeSize, uint16_t heightMapSize, uint16_t chunkSize) : treeSize(treeSize), heightMapSize(heightMapSize), chunkSize(chunkSize)
 {
@@ -79,7 +80,8 @@ void SVDAGBuilder::build()
 	                        if (voxelY > y) break;
 	                        uint64_t morton = mortonnd::MortonNDBmi_3D_64::Encode(voxelX, voxelY, voxelZ);
 							leafVoxels++;
-							insertNodeRecursive(subtreeRoot, morton, currentDepth);
+							uint16_t material = getMountainColor((float)voxelY / (float)(treeSize - 1));
+							insertNodeRecursive(subtreeRoot, morton, currentDepth, material);
 	                    }
 	                }
 	            }
@@ -103,9 +105,62 @@ void SVDAGBuilder::build()
 	printf("Total nodes: %zu\n", nodes.size());
 	printf("Max height: %u\n", maxHeight);
 	printf("Min height: %u\n", minHeight);
+	printf("Max refs: %u\n", maxRefs);
+	//dumpRefsToFile("..\\Renderer\\refs.txt");
 }
 
-void SVDAGBuilder::insertNodeRecursive(std::shared_ptr<CPUNode>& parent, uint64_t morton, size_t currentDepth)
+uint16_t SVDAGBuilder::getMountainColor(float y) {
+
+	float snowLine = 0.75f;
+	float rockLine = 0.45f;
+	float grassLine = 0.25f;
+
+	glm::vec3 mountainColor;
+
+	float noise1 = glm::simplex(glm::vec2(y * 10.0f, 0.5f)) * 0.1f;
+	float noise2 = glm::simplex(glm::vec2(y * 20.0f, 0.7f)) * 0.05f;
+
+	if (y > snowLine) {
+		float snowBlend = glm::smoothstep(snowLine, 0.9f, y);
+		glm::vec3 shadedSnow = glm::vec3(0.8, 0.85, 0.95);
+		glm::vec3 brightSnow = glm::vec3(1.0, 1.0, 1.0);
+		mountainColor = glm::mix(shadedSnow, brightSnow, snowBlend);
+		mountainColor += glm::vec3(noise1);
+	}
+	else if (y > rockLine) {
+		float rockBlend = (y - rockLine) / (snowLine - rockLine);
+		glm::vec3 lowerRock = glm::vec3(0.5, 0.4, 0.35);
+		glm::vec3 upperRock = glm::vec3(0.7, 0.7, 0.75);
+		mountainColor = glm::mix(lowerRock, upperRock, rockBlend);
+		mountainColor += glm::vec3(noise2);
+	}
+	else if (y > grassLine) {
+		float meadowBlend = (y - grassLine) / (rockLine - grassLine);
+		glm::vec3 alpineMeadow = glm::vec3(0.3, 0.5, 0.2);
+		glm::vec3 rockyTerrain = glm::vec3(0.45, 0.38, 0.32);
+		mountainColor = glm::mix(alpineMeadow, rockyTerrain, meadowBlend);
+		mountainColor += glm::vec3(noise1 * 2.0);
+	}
+	else {
+		float forestBlend = y / grassLine;
+		glm::vec3 darkForest = glm::vec3(0.1, 0.25, 0.1);
+		glm::vec3 lightForest = glm::vec3(0.2, 0.35, 0.15);
+		mountainColor = glm::mix(darkForest, lightForest, forestBlend);
+		mountainColor += glm::vec3(noise2 * 1.5);
+	}
+
+	mountainColor = glm::clamp(mountainColor, glm::vec3(0.0f), glm::vec3(1.0f));
+
+	uint16_t r = static_cast<uint16_t>(mountainColor.r * 31.0f);
+	uint16_t g = static_cast<uint16_t>(mountainColor.g * 63.0f);
+	uint16_t b = static_cast<uint16_t>(mountainColor.b * 31.0f);
+
+	uint16_t rgb565 = (r << 11) | (g << 5) | b;
+
+	return rgb565;
+}
+
+void SVDAGBuilder::insertNodeRecursive(std::shared_ptr<CPUNode>& parent, uint64_t morton, size_t currentDepth, uint16_t material)
 {
 	uint8_t childIndex = (morton >> (3 * (maxDepth - currentDepth - 1))) & 0b111;
 	uint8_t childMask = 1 << childIndex;
@@ -120,16 +175,27 @@ void SVDAGBuilder::insertNodeRecursive(std::shared_ptr<CPUNode>& parent, uint64_
 	if (parent->children[childIndex] == nullptr)
 	{
 		parent->children[childIndex] = std::make_unique<CPUNode>();
+		parent->children[childIndex]->material = material;
 	}
 
-	insertNodeRecursive(parent->children[childIndex], morton, currentDepth + 1);
+	insertNodeRecursive(parent->children[childIndex], morton, currentDepth + 1, material);
+}
+
+size_t hash_combine(size_t lhs, size_t rhs) {
+	lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+	return lhs;
 }
 
 size_t SVDAGBuilder::calculateNodeHash(std::shared_ptr<CPUNode>& node) {
-	size_t hash = node->childMask;
+	if (!node) return 0;
+
+	size_t hash = std::hash<uint8_t>{}(node->childMask);
+
+	hash = hash_combine(hash, std::hash<uint16_t>{}(node->material));
+
 	for (int i = 0; i < 8; ++i) {
 		if (node->children[i]) {
-			hash ^= std::hash<std::shared_ptr<CPUNode>>()(node->children[i]) << i;
+			hash = hash_combine(hash, calculateNodeHash(node->children[i]));
 		}
 	}
 	return hash;
@@ -141,6 +207,15 @@ void SVDAGBuilder::reduceTreeRecursive(std::shared_ptr<CPUNode>& node, size_t cu
 	for (int i = 0; i < 8; ++i) {
 		if (node->children[i]) {
 			reduceTreeRecursive(node->children[i], currentDepth + 1);
+
+			size_t childHash = calculateNodeHash(node->children[i]);
+			auto nodeIter = nodeCache.find(childHash);
+			if (nodeIter != nodeCache.end()) {
+				node->children[i] = nodeIter->second;
+			}
+			else {
+				nodeCache[childHash] = node->children[i];
+			}
 		}
 	}
 
@@ -148,10 +223,13 @@ void SVDAGBuilder::reduceTreeRecursive(std::shared_ptr<CPUNode>& node, size_t cu
 
 	auto it = nodeCache.find(nodeHash);
 	if (it != nodeCache.end()) {
+		it->second->refs++;
+		maxRefs = std::max(maxRefs, it->second->refs);
 		node = it->second;
 	}
 	else {
 		nodeCache[nodeHash] = node;
+		nodeCache[nodeHash]->refs = 1;
 	}
 }
 
@@ -220,6 +298,9 @@ void SVDAGBuilder::linearizeRecursive(std::shared_ptr<CPUNode>& node,
 
 			GPUNode gpuNode;
 			gpuNode.childMask = child->childMask;
+			gpuNode.refs = child->refs;
+			gpuNode.material = child->material;
+
 			nodes.push_back(gpuNode);
 
 			nodeToIndexMap[child] = childIndex;
@@ -233,4 +314,17 @@ void SVDAGBuilder::saveToFile()
 	std::ofstream file("..\\Renderer\\world.bin", std::ios::binary);
 	cereal::BinaryOutputArchive archive(file);
 	archive(*this);
+}
+
+void SVDAGBuilder::dumpRefsToFile(const std::string& filename) {
+	std::ofstream out(filename);
+	if (!out.is_open()) {
+		printf("Failed to open %s for writing\n", filename.c_str());
+		return;
+	}
+	for (size_t i = 0; i < nodes.size(); ++i) {
+		out << "Node " << i << ": refs = " << nodes[i].refs << "\n";
+	}
+	out.close();
+	printf("Dumped refs to %s\n", filename.c_str());
 }

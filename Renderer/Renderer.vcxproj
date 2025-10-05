@@ -38,6 +38,7 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\QuadGeometry.cpp" />
     <ClCompile Include="src\Shader.cpp" />
+    <ClCompile Include="src\SVDAGLoader.cpp" />
     <ClCompile Include="src\SVOLoader.cpp" />
     <ClCompile Include="src\Texture.cpp" />
     <ClCompile Include="src\VoxelApp.cpp" />
@@ -142,7 +143,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
