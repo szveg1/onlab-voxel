@@ -63,6 +63,7 @@ public:
 			delta: 0.000000
 			0.00 FPS
 			Camera position: (0.00, 0.00, 0.00)
+		mouse button: right
 			r to reload shader
 			t to visualize raycasting steps (blue = less, yellow = more))";
 
@@ -77,6 +78,7 @@ public:
 		ImGui::SetWindowPos(ImVec2(10, 10)); // Position the window at the top-left corner
 		ImGui::Text("delta: %f\n%.1f FPS", deltaTime, fps);
 		ImGui::Text("Camera position: (%.2f, %.2f, %.2f)", camera->Position().x, camera->Position().y, camera->Position().z);
+		ImGui::Text("mouse button: %s", mousePressed == MOUSE_RIGHT ? "right" : mousePressed == MOUSE_LEFT ? "left" : mousePressed == MOUSE_MIDDLE ? "middle" : "none");
 		ImGui::Text("r to reload shader");
 		ImGui::Text("t to visualize raycasting steps (blue = less, yellow = more)");
 		ImGui::End();

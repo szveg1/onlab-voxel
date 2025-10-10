@@ -156,6 +156,16 @@ void GLApp::mouseButtonCallback(GLFWwindow* window, int button, int action, int 
 {
 	double pX, pY;
 	glfwGetCursorPos(instance->window, &pX, &pY);
-	if (action == GLFW_PRESS) instance->onMousePressed((button == GLFW_MOUSE_BUTTON_LEFT) ? MOUSE_LEFT : MOUSE_RIGHT, (int)pX, (int)pY);
-	else				      instance->onMouseReleased((button == GLFW_MOUSE_BUTTON_LEFT) ? MOUSE_LEFT : MOUSE_RIGHT, (int)pX, (int)pY);
+	MouseButton mouseButton;
+	switch (button) {
+		case GLFW_MOUSE_BUTTON_LEFT: mouseButton = MOUSE_LEFT; break;
+		case GLFW_MOUSE_BUTTON_RIGHT: mouseButton = MOUSE_RIGHT; break;
+		case GLFW_MOUSE_BUTTON_MIDDLE: mouseButton = MOUSE_MIDDLE; break;
+	};
+	if (action == GLFW_PRESS) {
+		instance->onMousePressed(mouseButton, (int)pX, (int)pY);
+	}
+	else {
+		instance->onMouseReleased(mouseButton, (int)pX, (int)pY);
+	}
 }
