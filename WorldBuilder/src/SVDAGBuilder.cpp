@@ -8,6 +8,12 @@
 SVDAGBuilder::SVDAGBuilder(uint32_t treeSize, uint16_t heightMapSize, uint16_t chunkSize) : treeSize(treeSize), heightMapSize(heightMapSize), chunkSize(chunkSize)
 {
 	maxDepth = static_cast<size_t>(std::log2(treeSize));
+
+	materialLUT.resize(treeSize);
+	for (uint32_t y = 0; y < treeSize; y++) {
+		float normalizedY = static_cast<float>(y) / (treeSize - 1);
+		materialLUT[y] = computeMountainColor(normalizedY);
+	}
 }
 
 SVDAGBuilder::~SVDAGBuilder()
@@ -80,7 +86,7 @@ void SVDAGBuilder::build()
 	                        if (voxelY > y) break;
 	                        uint64_t morton = mortonnd::MortonNDBmi_3D_64::Encode(voxelX, voxelY, voxelZ);
 							leafVoxels++;
-							uint16_t material = getMountainColor((float)voxelY / (float)(treeSize - 1));
+							uint16_t material = getMountainColor(voxelY);
 							insertNodeRecursive(subtreeRoot, morton, currentDepth, material);
 	                    }
 	                }
@@ -106,10 +112,9 @@ void SVDAGBuilder::build()
 	printf("Max height: %u\n", maxHeight);
 	printf("Min height: %u\n", minHeight);
 	printf("Max refs: %u\n", maxRefs);
-	//dumpRefsToFile("..\\Renderer\\refs.txt");
 }
 
-uint16_t SVDAGBuilder::getMountainColor(float y) {
+uint16_t SVDAGBuilder::computeMountainColor(float y) {
 
 	float snowLine = 0.75f;
 	float rockLine = 0.45f;

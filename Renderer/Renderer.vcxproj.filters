@@ -45,6 +45,9 @@
     <ClInclude Include="include\SVDAGLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\SVDAGEditor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Camera.cpp">
@@ -80,6 +83,9 @@
     <ClCompile Include="src\SVDAGLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\SVDAGEditor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />
@@ -89,7 +95,13 @@
     <None Include="shaders\textured.frag">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="shaders\raycast.comp">
+    <None Include="shaders\render.comp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="shaders\edit.comp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="shaders\brushData.comp">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

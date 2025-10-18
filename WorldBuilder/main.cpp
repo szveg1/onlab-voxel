@@ -2,7 +2,7 @@
 
 int main(void)
 {
-	SVDAGBuilder builder(1024, 512, 64);
+	SVDAGBuilder builder(256, 256, 128);
 	builder.build();
 	return 0;
 }

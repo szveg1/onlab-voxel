@@ -2,7 +2,7 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-enum MouseButton { MOUSE_LEFT, MOUSE_RIGHT, MOUSE_MIDDLE };
+enum MouseButton { NONE, MOUSE_LEFT, MOUSE_RIGHT, MOUSE_MIDDLE };
 enum SpecialKeys { KEY_RIGHT = 262, KEY_LEFT = 263, KEY_DOWN = 264, KEY_UP = 265 };
 
 class GLApp

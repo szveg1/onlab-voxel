@@ -37,7 +37,7 @@ Shader::Shader(GLuint shaderType, const char* sourcePath)
 	glShaderSource(shaderObject, 1, &shaderCode, NULL);
 	glCompileShader(shaderObject);
 
-	if (!checkShader(shaderObject, "Shader error")) return;
+	if (!checkShader(shaderObject, "Error in shader: " + std::string(sourcePath))) return;
 }
 
 Shader::~Shader()

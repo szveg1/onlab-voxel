@@ -26,6 +26,7 @@
     <ClInclude Include="include\GPUProgram.h" />
     <ClInclude Include="include\QuadGeometry.h" />
     <ClInclude Include="include\Shader.h" />
+    <ClInclude Include="include\SVDAGEditor.h" />
     <ClInclude Include="include\SVDAGLoader.h" />
     <ClInclude Include="include\SVOLoader.h" />
     <ClInclude Include="include\Texture.h" />
@@ -38,13 +39,16 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\QuadGeometry.cpp" />
     <ClCompile Include="src\Shader.cpp" />
+    <ClCompile Include="src\SVDAGEditor.cpp" />
     <ClCompile Include="src\SVDAGLoader.cpp" />
     <ClCompile Include="src\SVOLoader.cpp" />
     <ClCompile Include="src\Texture.cpp" />
     <ClCompile Include="src\VoxelApp.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\raycast.comp" />
+    <None Include="shaders\edit.comp" />
+    <None Include="shaders\brushData.comp" />
+    <None Include="shaders\render.comp" />
     <None Include="shaders\quad.vert" />
     <None Include="shaders\textured.frag" />
     <None Include="vcpkg.json" />

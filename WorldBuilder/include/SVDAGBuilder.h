@@ -55,8 +55,10 @@ private:
 	std::shared_ptr<CPUNode> root;
 	std::unordered_map<size_t, std::shared_ptr<CPUNode>> nodeCache;
 	std::unordered_map<std::shared_ptr<CPUNode>, size_t> nodeToIndexMap;
+	std::vector<uint16_t> materialLUT;
 
-	uint16_t getMountainColor(float y);
+	uint16_t computeMountainColor(float y);
+	uint16_t getMountainColor(uint32_t y) { return materialLUT[y]; }
 	void insertNodeRecursive(std::shared_ptr<CPUNode>& parent, uint64_t morton, size_t currentDepth, uint16_t material);
 	size_t calculateNodeHash(std::shared_ptr<CPUNode>& node);
 	void reduceTreeRecursive(std::shared_ptr<CPUNode>& node, size_t currentDepth);

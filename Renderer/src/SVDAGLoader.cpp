@@ -18,7 +18,7 @@ void SVDAGLoader::load()
 void SVDAGLoader::uploadToGPU()
 {
 	// TODO: maybe tweak this?
-	nodes.reserve(nodes.size() * 1000);
+	nodes.reserve(nodes.size() * 500);
 
 	glGenBuffers(1, &ssbo);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
@@ -31,4 +31,13 @@ void SVDAGLoader::uploadToGPU()
 	glBufferData(GL_ATOMIC_COUNTER_BUFFER, sizeof(GLuint), &initialCount, GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 1, nodeCounter);
 	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+}
+
+GLuint SVDAGLoader::getNodeCount()
+{
+	GLuint count;
+	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, nodeCounter);
+	glGetBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(GLuint), &count);
+	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+	return count;
 }
