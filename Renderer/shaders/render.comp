@@ -17,6 +17,8 @@ uniform struct {
 uniform uint treeDepth;
 uniform bool visualizeSteps;
 uniform float brushSize;
+uniform vec3 brushCenter;
+uniform vec3 brushColor;
 
 layout(std430, binding = 0) buffer VoxelNodes {
     VoxelNode nodes[];
@@ -150,43 +152,27 @@ float traverseOctree(vec3 p, vec3 rayDir, out uint material) {
     return nodeSize * 0.01;
 }
 
-vec3 getBrushCenter() {
-    vec2 centerUV = vec2(0.0, 0.0);
-    vec4 centerPixel = vec4(centerUV, 1, 1);
-    vec4 centerRayDir = centerPixel * camera.rayDirMatrix;
-    vec3 centerD = normalize(centerRayDir.xyz);
-    
-    vec3 centerP = camera.position + centerD * 1e-5;
-    uint material;
-    
-    for (int i = 0; i < 32; i++) {
-        if (any(lessThan(centerP, vec3(0.0))) || any(greaterThan(centerP, vec3(1.0)))) {
-            break;
-        }
-        
-        float stepSize = traverseOctree(centerP, centerD, material);
-        
-        if (stepSize == 0.0) {
-            vec3 relPos = fract(centerP) - 0.5;
-            vec3 absPos = abs(relPos);
-            vec3 centerNormal;
-            
-            if (absPos.x > absPos.y && absPos.x > absPos.z) {
-                centerNormal = vec3(sign(relPos.x), 0.0, 0.0);
-            } else if (absPos.y > absPos.z) {
-                centerNormal = vec3(0.0, sign(relPos.y), 0.0);
-            } else {
-                centerNormal = vec3(0.0, 0.0, sign(relPos.z));
-            }
-            
-            float voxelSize = 1.0 / pow(2.0, float(treeDepth - 1));
-            return centerP + centerNormal * voxelSize * 0.6;
-        }
-        
-        centerP += centerD * stepSize;
+float intersectSphere(vec3 rayOrigin, vec3 rayDir, vec3 sphereCenter, float sphereRadius) {
+    vec3 oc = rayOrigin - sphereCenter;
+    float a = dot(rayDir, rayDir);
+    float b = 2.0 * dot(oc, rayDir);
+    float c = dot(oc, oc) - sphereRadius * sphereRadius;
+    float discriminant = b*b - 4*a*c;
+    if (discriminant < 0.0) {
+        return -1.0;
     }
     
-    return vec3(-999.0);
+    float t = (-b - sqrt(discriminant)) / (2.0 * a);
+    if (t > 0.0) {
+        return t;
+    }
+    
+    t = (-b + sqrt(discriminant)) / (2.0 * a);
+    if (t > 0.0) {
+        return t;
+    }
+
+    return -1.0;
 }
 
 float saturate( float x ) { return clamp( x, 0.0, 1.0 ); }
@@ -290,36 +276,29 @@ void main() {
         p += d * stepSize;
     }
 
+    vec3 sceneColor = vec3(0.0);
+    float sceneDepth = 1.0/0.0;
+
     if (found) {
-    vec3 color; 
-    if (visualizeSteps) {
-        float steps_normalized = steps / 1024.0f;
-        color = plasma_quintic(steps_normalized);        
-    } else {
-        color = getColorFromMaterial(material);
-        
-        if (true) {
-            vec3 brushCenter = getBrushCenter();
-            
-            if (brushCenter.x != -999.0) {
-                float distanceToBrush = length(p - brushCenter);
-                
-                if (distanceToBrush <= brushSize) {
-                    float intensity = 1.0 - (distanceToBrush / brushSize);
-                    intensity = smoothstep(0.0, 1.0, intensity);
-                    
-                    vec3 highlightColor = vec3(0.3, 0.8, 1.0);
-                    
-                    color = mix(color, highlightColor, intensity * 0.6);
-                }
-            }
+        if (visualizeSteps) {
+            float steps_normalized = float(steps) / 128.0f;
+            sceneColor = plasma_quintic(steps_normalized);
+        } else {
+            sceneColor = getColorFromMaterial(material);
         }
-        
-        // Apply lighting
-        // color = applyLighting(color, hitNormal, -d);
+        sceneDepth = length(p - rayOrigin);
     }
-        imageStore(image, pixelCoord, vec4(color, 1));
-    } else {
-        imageStore(image, pixelCoord, vec4(0));
+    
+    vec3 finalColor = sceneColor;
+
+    if (brushCenter.x > -990.0) {
+        float brushDepth = intersectSphere(rayOrigin, d, brushCenter, brushSize);
+
+        if (brushDepth > 0.0 && brushDepth < sceneDepth) {
+            float ghostAlpha = 0.4;
+            finalColor = mix(finalColor, brushColor, ghostAlpha);
+        }
     }
+
+    imageStore(image, pixelCoord, vec4(finalColor, 1.0));
 }

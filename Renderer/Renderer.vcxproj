@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\Brush.h" />
     <ClInclude Include="include\Camera.h" />
     <ClInclude Include="include\Color.h" />
     <ClInclude Include="include\Geometry.h" />
@@ -32,6 +33,7 @@
     <ClInclude Include="include\Texture.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Brush.cpp" />
     <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\Color.cpp" />
     <ClCompile Include="src\GLApp.cpp" />

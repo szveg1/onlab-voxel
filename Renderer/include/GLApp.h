@@ -26,9 +26,9 @@ public:
 	virtual void onTimeElapsed(float startTime, float endTime) {}
 protected:
 	virtual void window_size_callback(GLFWwindow* window, int width, int height);
+	GLFWwindow* window;
 private:
 	static GLApp* instance;
-	GLFWwindow* window;
 	static void errorCallback(int error, const char* description);
 	static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 	static void cursorPosCallback(GLFWwindow* window, double x, double y);

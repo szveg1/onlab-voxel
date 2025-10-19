@@ -23,7 +23,7 @@ public:
 	void uploadChangesToGPU();
 private:
 	std::vector<SVDAGGPUNode>& nodes;
-	uint32_t rootNodeIndex;
+	uint32_t rootNodeIndex = 0;
 	uint32_t maxDepth;
 
 	size_t originalNodeCount;

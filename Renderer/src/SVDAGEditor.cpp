@@ -2,7 +2,7 @@
 
 SVDAGEditor::SVDAGEditor(std::vector<SVDAGGPUNode>& nodes, uint32_t treeDepth)
 	: nodes(nodes), maxDepth(treeDepth)
-w{
+{
     clearModifiedLists();
 }
 
