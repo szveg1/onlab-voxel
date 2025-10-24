@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <nfd.h>
 #include <set>
 #include <print>
 #include <imgui_impl_opengl3.h>
@@ -55,8 +56,6 @@ public:
         camera = std::make_shared<Camera>();
 
         svdagLoader = std::make_shared<SVDAGLoader>();
-        svdagLoader->load();
-        svdagLoader->uploadToGPU();
 
         svdagEditor = std::make_shared<SVDAGEditor>(svdagLoader->getNodes(), svdagLoader->getDepth());
 
@@ -82,24 +81,7 @@ public:
 
         float fps = 1 / deltaTime;
 
-        std::string placeholder = R"(
-        delta: 0.000000
-        0.00 FPS
-        Camera position: (0.00, 0.00, 0.00)
-        mouse button: right
-        brush size: 0.00000
-        r to reload shader
-        t to visualize raycasting steps (blue = less, yellow = more
-        u to unlock cursor, l to lock))";
-
-        // Calculate the size needed for the text
-        ImVec2 textSize = ImGui::CalcTextSize(placeholder.c_str());
-
-        // Set the next window size to fit the text
-        ImGui::SetNextWindowSize(ImVec2(textSize.x + 20, textSize.y + 20)); // Add some padding
-
-        // Create a window in the upper left corner
-        ImGui::Begin("Info");
+        ImGui::Begin("Info", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Text("delta: %f\n%.1f FPS", deltaTime, fps);
         ImGui::Text("Camera position: (%.2f, %.2f, %.2f)", camera->Position().x, camera->Position().y, camera->Position().z);
         ImGui::Text("mouse button: %s", mousePressed == MOUSE_RIGHT ? "right" : mousePressed == MOUSE_LEFT ? "left" : mousePressed == MOUSE_MIDDLE ? "middle" : "none");
@@ -109,10 +91,35 @@ public:
         ImGui::Text("u to unlock cursor, l to lock");
         ImGui::End();
 
-        ImGui::SetNextWindowSize(ImVec2(300, 300), ImGuiCond_FirstUseEver);
-
-        ImGui::Begin("Color picker");
+        
+        ImGui::Begin("Color picker", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::ColorPicker3("Brush color", &brushColor.x);
+        ImGui::End();
+
+		ImGui::Begin("Load", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        if (ImGui::Button("Load SVDAG")) {
+			nfdu8char_t* outPath = nullptr;
+			nfdu8filteritem_t filters[1] = { { "svdag files", "bin" } };
+            nfdopendialogu8args_t args = { 0 };
+			args.filterList = filters;
+			args.filterCount = 1;
+			nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
+            if (result == NFD_OKAY) {
+                svdagLoader->load(std::string(outPath));
+                svdagLoader->uploadToGPU();
+
+                svdagEditor = std::make_shared<SVDAGEditor>(svdagLoader->getNodes(), svdagLoader->getDepth());
+
+                brush = std::make_unique<Brush>(camera, svdagLoader, svdagEditor);
+
+                renderProgram->use();
+                renderProgram->setUniform(svdagLoader->getDepth(), "treeDepth");
+            } else if (result == NFD_CANCEL) {
+				std::print("User pressed cancel. \n");
+            } else {
+                std::print("Error: {} \n", NFD_GetError());
+            }
+        }
         ImGui::End();
 
         uint16_t r = static_cast<uint16_t>(brushColor.r * 31.0f);
@@ -132,12 +139,15 @@ public:
         if (keysPressed.count('r')) {
             renderShader = std::make_unique<Shader>(GL_COMPUTE_SHADER, "shaders\\render.comp");
             renderProgram = std::make_unique<GPUProgram>(renderShader.get());
+            renderProgram->use();
+            renderProgram->setUniform(visualizeSteps, "visualizeSteps");
+            renderProgram->setUniform(svdagLoader->getDepth(), "treeDepth");
         }
         if (keysPressed.count('t')) {
             visualizeSteps = !visualizeSteps;
             renderProgram->use();
             renderProgram->setUniform(visualizeSteps, "visualizeSteps");
-            keysPressed.erase('t');
+			keysPressed.erase('t');
         }
         if (keysPressed.count('u')) {
             glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
@@ -148,7 +158,8 @@ public:
             cameraLock = false;
         }
 
-        vec3 brushCenter = brush->getBrushCenter();
+		BrushData brushData = brush->getBrushData();
+        vec3 brushCenter = brushData.position;
         if ((mousePressed == MOUSE_LEFT || mousePressed == MOUSE_RIGHT) && !cameraLock) {
             if (brushCenter.x != -999.0f) {
                 bool isAdding = (mousePressed == MOUSE_LEFT);

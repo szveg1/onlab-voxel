@@ -1,5 +1,6 @@
 {
   "dependencies": [
+    "cereal",
     "glad",
     "glfw3",
     "glm",
@@ -10,6 +11,6 @@
         "opengl3-binding"
       ]
     },
-    "cereal"
+    "nativefiledialog-extended"
   ]
 }

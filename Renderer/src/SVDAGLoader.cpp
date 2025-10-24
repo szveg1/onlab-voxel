@@ -2,10 +2,11 @@
 #include <chrono>
 #include <fstream>
 
-void SVDAGLoader::load()
+void SVDAGLoader::load(std::string filePath)
 {
+	nodes.clear();
 	auto start = std::chrono::steady_clock::now();
-	std::ifstream file("world.bin", std::ios::binary);
+	std::ifstream file(filePath, std::ios::binary);
 	cereal::BinaryInputArchive archive(file);
 	archive(*this);
 	auto end = std::chrono::steady_clock::now();
@@ -17,8 +18,17 @@ void SVDAGLoader::load()
 
 void SVDAGLoader::uploadToGPU()
 {
+	if (ssbo != 0) {
+		glDeleteBuffers(1, &ssbo);
+		ssbo = 0;
+	}
+	if (nodeCounter != 0) {
+		glDeleteBuffers(1, &nodeCounter);
+		nodeCounter = 0;
+	}
+
 	// TODO: maybe tweak this?
-	nodes.reserve(nodes.size() * 500);
+	nodes.reserve(nodes.size() * 10);
 
 	glGenBuffers(1, &ssbo);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
@@ -40,4 +50,13 @@ GLuint SVDAGLoader::getNodeCount()
 	glGetBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(GLuint), &count);
 	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
 	return count;
+}
+
+SVDAGLoader::~SVDAGLoader() {
+	if (ssbo != 0) {
+		glDeleteBuffers(1, &ssbo);
+	}
+	if (nodeCounter != 0) {
+		glDeleteBuffers(1, &nodeCounter);
+	}
 }

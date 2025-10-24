@@ -27,8 +27,9 @@ struct SVDAGGPUNode {
 
 class SVDAGLoader {
 public:
+	~SVDAGLoader();
     uint32_t maxRefs;
-    void load();
+    void load(std::string filePath);
     void uploadToGPU();
     GLuint getNodeCount();
     GLuint getDepth() { return static_cast<GLuint>(maxDepth); }

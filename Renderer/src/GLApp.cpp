@@ -1,12 +1,15 @@
 #include "GLApp.h"
 
+#define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
 #include <iostream>
 #include <glad/glad.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <nfd.h>
 
 GLApp* GLApp::instance = nullptr;
 
@@ -22,6 +25,7 @@ GLApp::GLApp(const char* title)
 
 GLApp::~GLApp()
 {
+	NFD_Quit();
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
@@ -93,6 +97,8 @@ void GLApp::run()
 	// Setup Platform/Renderer backends
 	ImGui_ImplGlfw_InitForOpenGL(instance->window, true);          // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
 	ImGui_ImplOpenGL3_Init();
+
+	NFD_Init();
 
 	while (!glfwWindowShouldClose(instance->window))
 	{
