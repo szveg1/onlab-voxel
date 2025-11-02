@@ -1,7 +1,9 @@
 {
   "dependencies": [
+    "assimp",
+    "cereal",
     "glm",
     "morton-nd",
-    "cereal"
+    "tinyobjloader"
   ]
 }

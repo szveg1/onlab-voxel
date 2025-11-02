@@ -22,12 +22,14 @@
     <ClInclude Include="include\HeightMapGenerator.h" />
     <ClInclude Include="include\SVDAGBuilder.h" />
     <ClInclude Include="include\SVOBuilder.h" />
+    <ClInclude Include="include\TriangleBVH.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\HeightMapGenerator.cpp" />
     <ClCompile Include="src\SVDAGBuilder.cpp" />
     <ClCompile Include="src\SVOBuilder.cpp" />
+    <ClCompile Include="src\TriangleBVH.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />
