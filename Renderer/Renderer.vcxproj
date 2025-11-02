@@ -22,6 +22,7 @@
     <ClInclude Include="include\Brush.h" />
     <ClInclude Include="include\Camera.h" />
     <ClInclude Include="include\Color.h" />
+    <ClInclude Include="include\Common.h" />
     <ClInclude Include="include\Geometry.h" />
     <ClInclude Include="include\GLApp.h" />
     <ClInclude Include="include\GPUProgram.h" />
@@ -48,7 +49,6 @@
     <ClCompile Include="src\VoxelApp.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\edit.comp" />
     <None Include="shaders\brushData.comp" />
     <None Include="shaders\render.comp" />
     <None Include="shaders\quad.vert" />

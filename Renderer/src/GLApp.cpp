@@ -135,10 +135,6 @@ void GLApp::window_size_callback(GLFWwindow* window, int width, int height)
 
 void GLApp::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-		glfwSetWindowShouldClose(window, GLFW_TRUE);
-		return;
-	}
 	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
 		if ((mods & GLFW_MOD_SHIFT) == 0 && key >= GLFW_KEY_A && key <= GLFW_KEY_Z) {
 			key += 'a' - 'A';

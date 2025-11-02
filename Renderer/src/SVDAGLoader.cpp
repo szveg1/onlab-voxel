@@ -27,12 +27,13 @@ void SVDAGLoader::uploadToGPU()
 		nodeCounter = 0;
 	}
 
-	// TODO: maybe tweak this?
-	nodes.reserve(nodes.size() * 10);
+	size_t maxNodes =  nodes.size() * 2;
+
+	nodes.reserve(maxNodes);
 
 	glGenBuffers(1, &ssbo);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, nodes.capacity() * sizeof(SVDAGGPUNode), nodes.data(), GL_STATIC_DRAW);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, nodes.capacity() * sizeof(SVDAGGPUNode), nodes.data(), GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
 
 	glGenBuffers(1, &nodeCounter);

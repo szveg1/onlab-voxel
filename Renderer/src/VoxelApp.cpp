@@ -1,12 +1,13 @@
 #include "GLApp.h"
 
 #include <algorithm>
+#include <future>
+#include <glm/glm.hpp>
+#include <imgui_impl_opengl3.h>
 #include <memory>
 #include <nfd.h>
-#include <set>
 #include <print>
-#include <imgui_impl_opengl3.h>
-#include <glm/glm.hpp>
+#include <set>
 
 #include "Brush.h"
 #include "Camera.h"
@@ -28,17 +29,32 @@ class VoxelApp : public GLApp {
     std::shared_ptr<Camera> camera;
     std::shared_ptr<SVDAGLoader> svdagLoader;
     std::shared_ptr<SVDAGEditor> svdagEditor;
+    
     std::unique_ptr<Brush> brush;
-    std::set<int> keysPressed;
-    float deltaTime, lastFrame;
-    bool needsUpload = false;
-    bool cameraLock = false;
-
-    bool visualizeSteps = false;
-    int mousePressed = -1;
     float brushSize = 0.005f;
     vec3 brushColor = vec3(1);
+	BrushMode brushMode = SPHERE;
+    vec3 firstCorner = vec3(-999.0f);
+	bool firstCornerSet = false;
 
+    std::set<int> keysPressed;
+    float deltaTime, lastFrame;
+    bool cameraLock = false;
+    MouseButton mousePressed = NONE;
+    MouseButton previousMouseButton = NONE;
+    size_t worldResolution = 0;
+
+    bool showInfo = false;
+	bool showHelp = false;
+	bool showColorPicker = false;
+    bool showBrushMode = false;
+    bool isWorldLoading = false;
+    
+    bool needsUpload = false;
+    bool visualizeSteps = false;
+
+	std::future<void> loadingTask;
+	std::string pendingFilePath;
 public:
     VoxelApp() : GLApp("Voxel app")
     {
@@ -79,102 +95,42 @@ public:
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        float fps = 1 / deltaTime;
-
-        ImGui::Begin("Info", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-        ImGui::Text("delta: %f\n%.1f FPS", deltaTime, fps);
-        ImGui::Text("Camera position: (%.2f, %.2f, %.2f)", camera->Position().x, camera->Position().y, camera->Position().z);
-        ImGui::Text("mouse button: %s", mousePressed == MOUSE_RIGHT ? "right" : mousePressed == MOUSE_LEFT ? "left" : mousePressed == MOUSE_MIDDLE ? "middle" : "none");
-        ImGui::Text("brush size: %.5f", brushSize);
-        ImGui::Text("r to reload shader");
-        ImGui::Text("t to visualize raycasting steps (blue = less, yellow = more)");
-        ImGui::Text("u to unlock cursor, l to lock");
-        ImGui::End();
-
-        
-        ImGui::Begin("Color picker", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-        ImGui::ColorPicker3("Brush color", &brushColor.x);
-        ImGui::End();
-
-		ImGui::Begin("Load", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-        if (ImGui::Button("Load SVDAG")) {
-			nfdu8char_t* outPath = nullptr;
-			nfdu8filteritem_t filters[1] = { { "svdag files", "bin" } };
-            nfdopendialogu8args_t args = { 0 };
-			args.filterList = filters;
-			args.filterCount = 1;
-			nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
-            if (result == NFD_OKAY) {
-                svdagLoader->load(std::string(outPath));
-                svdagLoader->uploadToGPU();
-
-                svdagEditor = std::make_shared<SVDAGEditor>(svdagLoader->getNodes(), svdagLoader->getDepth());
-
-                brush = std::make_unique<Brush>(camera, svdagLoader, svdagEditor);
-
-                renderProgram->use();
-                renderProgram->setUniform(svdagLoader->getDepth(), "treeDepth");
-            } else if (result == NFD_CANCEL) {
-				std::print("User pressed cancel. \n");
-            } else {
-                std::print("Error: {} \n", NFD_GetError());
+        if (isWorldLoading && loadingTask.valid()) {
+            if (loadingTask.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+                loadingTask.get();
+                finishLoading();
             }
+		}
+
+        if (showInfo) {
+            showInfoWindow();
         }
-        ImGui::End();
+        if (showHelp) {
+            showHelpWindow();
+		}
+        if (showColorPicker) {
+            showColorPickerWindow();
+        }
+        if (isWorldLoading) {
+            showLoadingWindow();
+        }
 
-        uint16_t r = static_cast<uint16_t>(brushColor.r * 31.0f);
-        uint16_t g = static_cast<uint16_t>(brushColor.g * 63.0f);
-        uint16_t b = static_cast<uint16_t>(brushColor.b * 31.0f);
-
-        uint16_t material = (r << 11) | (g << 5) | b;
-
+        showMainMenuBar();
 
         glClearColor(0.529f, 0.808f, 0.922f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        if (!cameraLock) 
-        camera->move(keysPressed, deltaTime);
-
-
-        if (keysPressed.count('r')) {
-            renderShader = std::make_unique<Shader>(GL_COMPUTE_SHADER, "shaders\\render.comp");
-            renderProgram = std::make_unique<GPUProgram>(renderShader.get());
-            renderProgram->use();
-            renderProgram->setUniform(visualizeSteps, "visualizeSteps");
-            renderProgram->setUniform(svdagLoader->getDepth(), "treeDepth");
-        }
-        if (keysPressed.count('t')) {
-            visualizeSteps = !visualizeSteps;
-            renderProgram->use();
-            renderProgram->setUniform(visualizeSteps, "visualizeSteps");
-			keysPressed.erase('t');
-        }
-        if (keysPressed.count('u')) {
-            glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            cameraLock = true;
-        }
-        if (keysPressed.count('l')) {
-            glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            cameraLock = false;
-        }
-
 		BrushData brushData = brush->getBrushData();
-        vec3 brushCenter = brushData.position;
-        if ((mousePressed == MOUSE_LEFT || mousePressed == MOUSE_RIGHT) && !cameraLock) {
-            if (brushCenter.x != -999.0f) {
-                bool isAdding = (mousePressed == MOUSE_LEFT);
-                brush->apply(brushCenter, brushSize, isAdding, material);
-                brush->uploadChangesToGPU();
-                needsUpload = true;
-            }
+
+        if (!cameraLock) {
+            camera->move(keysPressed, deltaTime);
+			applyBrush(brushData);
         }
-
-
+        
         if (needsUpload) {
             brush->uploadChangesToGPU();
             needsUpload = false;
         }
-
 
         renderProgram->use();
         renderProgram->setUniform(camera->RayDirMatrix(), "camera.rayDirMatrix");
@@ -182,7 +138,9 @@ public:
         renderProgram->setUniform(visualizeSteps, "visualizeSteps");
         renderProgram->setUniform(brushSize, "brushSize");
         renderProgram->setUniform(brushColor, "brushColor");
-        renderProgram->setUniform(brushCenter, "brushCenter");
+        renderProgram->setUniform(brushData.position, "brushCenter");
+        renderProgram->setUniform(firstCornerSet, "selectingBox");
+        renderProgram->setUniform(firstCorner, "firstCorner");
 
         svdagLoader->bindNodes(0);
         scene->bindCompute(1);
@@ -193,10 +151,28 @@ public:
         drawProgram->use();
         scene->bind(0);
         quad->draw();
+
+        previousMouseButton = mousePressed;
     }
 
     void onKeyboard(int key) override
     {
+        switch (key) {
+        case 't' :
+            visualizeSteps = !visualizeSteps;
+            break;
+        case 'r' :
+			reloadShader();
+			break;
+        case GLFW_KEY_ESCAPE:
+            if (cameraLock) {
+                lockMouse();
+            }
+            else {
+                unlockMouse();
+            }
+			break;
+        }
         keysPressed.insert(key);
     }
 
@@ -223,7 +199,7 @@ public:
 
     void onMouseReleased(MouseButton but, int pX, int pY) override
     {
-        mousePressed = -1;
+        mousePressed = NONE;
     }
 
     void onMouseScrolled(double xoffset, double yoffset) override
@@ -231,6 +207,186 @@ public:
         brushSize += static_cast<float>(yoffset) * 0.0005f;
         brushSize = std::clamp(brushSize, 0.0f, 0.5f);
     }
+
+    void applyBrush(BrushData brushData) {
+        vec3 brushCenter = brushData.position;
+
+        if ((mousePressed == MOUSE_LEFT || mousePressed == MOUSE_RIGHT) && !isWorldLoading) {
+            if (brushCenter.x != -999.0f) {
+                bool isAdding = (mousePressed == MOUSE_LEFT);
+
+                uint16_t r = static_cast<uint16_t>(brushColor.r * 31.0f);
+                uint16_t g = static_cast<uint16_t>(brushColor.g * 63.0f);
+                uint16_t b = static_cast<uint16_t>(brushColor.b * 31.0f);
+                 
+                uint16_t material = (r << 11) | (g << 5) | b;
+
+                switch (brushMode) {
+                    case PAINT:
+						brush->paint(brushCenter, brushSize, material);
+                        break;
+                    case SPHERE:
+                        brush->sphere(brushCenter, brushSize, isAdding, material);
+                        break;
+                    case BOX:
+                        if (previousMouseButton == NONE) {
+                            static vec3 boxMin, boxMax;
+                            if (!firstCornerSet) {
+                                firstCorner = brushCenter;
+                                firstCornerSet = true;
+                            }
+                            else {
+                                firstCornerSet = false;
+                                boxMin = glm::min(firstCorner, brushCenter);
+                                boxMax = glm::max(firstCorner, brushCenter);
+                                brush->box(boxMin, boxMax, isAdding, material);
+                                firstCorner = vec3(-999.0f);
+                            }
+                        }
+                        break;
+                }
+                
+                brush->uploadChangesToGPU();
+                needsUpload = true;
+            }
+        }
+    }
+
+    void showMainMenuBar() {
+        if (ImGui::BeginMainMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Load world")) {
+                    showFileDialog();
+                }
+                if (ImGui::MenuItem("Exit")) {
+                    glfwSetWindowShouldClose(this->window, GLFW_TRUE);
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Brush")) {
+                if (ImGui::MenuItem("Open color picker")) {
+                    showColorPicker = true;
+                }
+                if (ImGui::BeginMenu("Mode")) {
+                    if (ImGui::MenuItem("Sphere", nullptr, brushMode == SPHERE)) {
+                        brushMode = SPHERE;
+                    }
+                    if (ImGui::MenuItem("Paint", nullptr, brushMode == PAINT)) {
+                        brushMode = PAINT;
+                    }
+                    if (ImGui::MenuItem("Box", nullptr, brushMode == BOX)) {
+                        brushMode = BOX;
+                    }
+					ImGui::EndMenu();
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Stats & Info")) {
+                if (ImGui::MenuItem("Show")) {
+                    showInfo = true;
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Help")) {
+                if (ImGui::MenuItem("Show")) {
+                    showHelp = true;
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
+        }
+    }
+
+    void showInfoWindow()
+    {
+        float fps = 1 / deltaTime;
+
+        ImGui::Begin("Stats & Info", &showInfo, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Text("Delta: %f\n%.1f FPS", deltaTime, fps);
+        ImGui::Text("Camera position: (%.2f, %.2f, %.2f)", camera->Position().x, camera->Position().y, camera->Position().z);
+        ImGui::Text("Mouse button: %s", mousePressed == MOUSE_RIGHT ? "right" : mousePressed == MOUSE_LEFT ? "left" : mousePressed == MOUSE_MIDDLE ? "middle" : "none");
+        ImGui::Text("Brush size: %.5f", brushSize);
+        ImGui::Text("Resolution: %zu", worldResolution);
+        ImGui::End();
+	}
+
+    void showHelpWindow() {
+        ImGui::Begin("Help", &showHelp, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Text("r to reload shader");
+        ImGui::Text("t to visualize raycasting steps (blue = less, yellow = more)");
+        ImGui::End();
+    }
+
+    void showColorPickerWindow() {
+        ImGui::Begin("Color picker", &showColorPicker, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::ColorPicker3("Brush color", &brushColor.x);
+        ImGui::End();
+    }
+
+    void showLoadingWindow() {
+        ImGui::OpenPopup("Loading world");
+
+        ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+        if (ImGui::BeginPopupModal("Loading world", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove)) {
+			ImGui::ProgressBar(ImGui::GetTime() * -1.5f, ImVec2(0.0f, 0.0f));
+            ImGui::EndPopup();
+        }
+    }
+
+    void showFileDialog() {
+        nfdu8char_t* outPath = nullptr;
+        nfdu8filteritem_t filters[1] = { { "SVDAG files", "dag" } };
+        nfdopendialogu8args_t args = { 0 };
+        args.filterList = filters;
+        args.filterCount = 1;
+        nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
+        if (result == NFD_OKAY) {
+            pendingFilePath = std::string(outPath);
+            NFD_FreePathU8(outPath);
+            startAsyncLoading();
+        }
+    }
+
+    void startAsyncLoading() {
+        isWorldLoading = true;
+        loadingTask = std::async(std::launch::async, [this]() {
+            svdagLoader->load(pendingFilePath);
+            });
+    }
+
+    void finishLoading() {
+        svdagLoader->uploadToGPU();
+
+        worldResolution = static_cast<size_t>(powf(2.0f, svdagLoader->getDepth()));
+
+        svdagEditor = std::make_shared<SVDAGEditor>(svdagLoader->getNodes(), svdagLoader->getDepth());
+        brush = std::make_unique<Brush>(camera, svdagLoader, svdagEditor);
+
+        renderProgram->use();
+        renderProgram->setUniform(svdagLoader->getDepth(), "treeDepth");
+
+        isWorldLoading = false;
+    }
+
+    void reloadShader() {
+        renderShader = std::make_unique<Shader>(GL_COMPUTE_SHADER, "shaders\\render.comp");
+        renderProgram = std::make_unique<GPUProgram>(renderShader.get());
+        renderProgram->use();
+        renderProgram->setUniform(visualizeSteps, "visualizeSteps");
+        renderProgram->setUniform(svdagLoader->getDepth(), "treeDepth");
+    }
+
+    void lockMouse() {
+        glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        cameraLock = false;
+	}
+
+    void unlockMouse() {
+        glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        cameraLock = true;
+	}
 };
 
 
