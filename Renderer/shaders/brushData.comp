@@ -22,6 +22,7 @@ uniform uint treeDepth;
 
 layout(std430, binding = 3) buffer BrushData {
     vec4 brushData; // .xyz = position, .w = hit flag
+    vec4 normal;
 };
 
 float traverseOctree(vec3 p, vec3 rayDir, out uint material) {
@@ -165,6 +166,7 @@ void main() {
             vec3 center = p + hitNormal * voxelSize * 0.6;
 
             brushData = vec4(center, 1.0);
+            normal = vec4(hitNormal, 0.0);
             return;
         }
         p += d * stepSize;

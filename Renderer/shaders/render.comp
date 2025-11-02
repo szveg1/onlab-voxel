@@ -19,6 +19,8 @@ uniform bool visualizeSteps;
 uniform float brushSize;
 uniform vec3 brushCenter;
 uniform vec3 brushColor;
+uniform bool selectingBox;
+uniform vec3 firstCorner;
 
 layout(std430, binding = 0) buffer VoxelNodes {
     VoxelNode nodes[];
@@ -55,6 +57,12 @@ float traverseOctree(vec3 p, vec3 rayDir, out uint material) {
     for(int depth = 0; depth < int(treeDepth); depth++) {
         VoxelNode node = nodes[nodeIndex];
         
+        // fully solid node
+        if (node.childMask == 0xFFu && node.children[0] == 0u) {
+            material = node.material;
+            return 0.0;
+        }
+
         // Empty node check
         if (node.childMask == 0u) {
             vec3 nodeMin = nodeCenter - vec3(nodeSize * 0.5);
@@ -82,7 +90,6 @@ float traverseOctree(vec3 p, vec3 rayDir, out uint material) {
             return max(exitDist * 0.95, nodeSize * 0.01);
         }
 
-        // Rest of octant calculation remains the same
         uint octant = 0;
         octant |= (rayPos.x > nodeCenter.x) ? 1 : 0;
         octant |= (rayPos.y > nodeCenter.y) ? 2 : 0;
@@ -291,7 +298,29 @@ void main() {
     
     vec3 finalColor = sceneColor;
 
-    if (brushCenter.x > -990.0) {
+    if (selectingBox) {
+        vec3 boxMin = min(brushCenter, firstCorner);
+        vec3 boxMax = max(brushCenter, firstCorner);
+        
+        float tNearBox, tFarBox;
+        bool intersectsBox = rayBoxIntersection(rayOrigin, d, boxMin, boxMax, tNearBox, tFarBox);
+        if (intersectsBox && tNearBox < sceneDepth) {
+            vec3 hitPoint = rayOrigin + d * max(0.0, tNearBox);
+            
+            const float threshold = 0.001; 
+            
+            bool isCloseToPlane = 
+                (abs(hitPoint.x - boxMin.x) < threshold) || (abs(hitPoint.x - boxMax.x) < threshold) ||
+                (abs(hitPoint.y - boxMin.y) < threshold) || (abs(hitPoint.y - boxMax.y) < threshold) ||
+                (abs(hitPoint.z - boxMin.z) < threshold) || (abs(hitPoint.z - boxMax.z) < threshold);
+
+            if (isCloseToPlane) {
+                float ghostAlpha = 0.6;
+                vec3 boxColor = vec3(1.0, 1.0, 0.0);
+                finalColor = mix(finalColor, boxColor, ghostAlpha);
+            }
+        }
+    } else if (brushCenter.x > -990.0 && !selectingBox) {
         float brushDepth = intersectSphere(rayOrigin, d, brushCenter, brushSize);
 
         if (brushDepth > 0.0 && brushDepth < sceneDepth) {

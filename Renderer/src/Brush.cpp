@@ -20,7 +20,7 @@ Brush::~Brush()
 	glDeleteBuffers(1, &brushBuffer);
 }
 
-glm::vec3 Brush::getBrushCenter() {
+BrushData Brush::getBrushData() {
     brushProgram->use();
     brushProgram->setUniform(camera->RayDirMatrix(), "camera.rayDirMatrix");
     brushProgram->setUniform(camera->Position(), "camera.position");
@@ -33,16 +33,26 @@ glm::vec3 Brush::getBrushCenter() {
 
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, brushBuffer);
     glm::vec4* data = (glm::vec4*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
-    glm::vec3 position = glm::vec3(-999.0);
-    if (data && data->w > 0.0) {
-        position = glm::vec3(*data);
+
+	BrushData brushData;
+    if (data && data[0].w > 0.0) {
+        brushData.didHit = true;
+        brushData.position = glm::vec3(data[0]);
+        brushData.normal = glm::vec3(data[1]);
     }
+    else {
+        brushData.didHit = false;
+        brushData.position = glm::vec3(-999.0);
+        brushData.normal = glm::vec3(0.0);
+	}
+    
     glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 
-    return position;
+    return brushData;
 }
+ 
 
-void Brush::apply(glm::vec3 center, float radius, bool isAdding, uint16_t material) {
+void Brush::sphere(glm::vec3 center, float radius, bool isAdding, uint16_t material) {
     const float voxelSize = 1.0f / exp2f(svdagLoader->getDepth());
 
     glm::vec3 minWorld = center - glm::vec3(radius);
@@ -72,6 +82,50 @@ void Brush::apply(glm::vec3 center, float radius, bool isAdding, uint16_t materi
             }
         }
     }
+}
+
+void Brush::paint(glm::vec3 center, float radius, uint16_t material) {
+    const float voxelSize = 1.0f / exp2f(svdagLoader->getDepth());
+
+    glm::vec3 minWorld = center - glm::vec3(radius);
+    glm::vec3 maxWorld = center + glm::vec3(radius);
+
+    glm::ivec3 minGrid = glm::floor(minWorld / voxelSize);
+    glm::ivec3 maxGrid = glm::ceil(maxWorld / voxelSize);
+
+    minGrid = glm::clamp(minGrid, glm::ivec3(0), glm::ivec3(1.0f / voxelSize - 1.0f));
+    maxGrid = glm::clamp(maxGrid, glm::ivec3(0), glm::ivec3(1.0f / voxelSize - 1.0f));
+
+    for (int z = minGrid.z; z <= maxGrid.z; ++z) {
+        for (int y = minGrid.y; y <= maxGrid.y; ++y) {
+            for (int x = minGrid.x; x <= maxGrid.x; ++x) {
+
+                glm::vec3 voxelPos = (glm::vec3(x, y, z) + 0.5f) * voxelSize;
+
+                if (glm::distance(voxelPos, center) <= radius) {
+
+                    svdagEditor->paintVoxel(voxelPos, material);
+
+                }
+            }
+        }
+    }
+}
+
+void Brush::box(glm::vec3 p1, glm::vec3 p2, bool isAdding, uint16_t material) {
+    size_t resolution = static_cast<size_t>(exp2f(svdagLoader->getDepth()));
+    const float voxelSize = 1.0f / resolution;
+
+    glm::ivec3 boxMin = glm::floor(p1 / voxelSize);
+    glm::ivec3 boxMax = glm::ceil(p2 / voxelSize);
+
+    glm::ivec3 maxCoord = glm::ivec3(resolution - 1);
+    boxMin = glm::clamp(boxMin, glm::ivec3(0), maxCoord);
+    boxMax = glm::clamp(boxMax, glm::ivec3(0), maxCoord);
+
+    Box targetBox = { boxMin, boxMax };
+
+    svdagEditor->modifyRegion(targetBox, isAdding, material);
 }
 
 void Brush::uploadChangesToGPU() {
